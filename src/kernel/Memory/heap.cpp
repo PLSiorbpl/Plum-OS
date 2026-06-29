@@ -52,6 +52,9 @@ namespace heap {
     void free(void* ptr) {
         if (!ptr) return;
         Block* old_block = static_cast<Block*>(ptr) - 1;
+        if (old_block->free) {
+            std::printf("DOUBLE FREE!\n");
+        }
         old_block->free = true;
 
         while (old_block->next && old_block->next->free) {

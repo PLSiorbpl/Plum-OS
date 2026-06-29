@@ -8,7 +8,6 @@ namespace MyCraft {
     class Chunk {
     public:
         Chunk() = default;
-        ~Chunk() = default;
 
         struct Block {
             uint8_t id = 0;

@@ -32,7 +32,7 @@ namespace MyCraft {
             kb::key_code key = sys_get_key(false);
 
             if (cam_chunk != last_cam_chunk) {
-                GenerateChunks(cam_chunk, 2);
+                GenerateChunks(cam_chunk, 4);
                 last_cam_chunk = cam_chunk;
             }
 

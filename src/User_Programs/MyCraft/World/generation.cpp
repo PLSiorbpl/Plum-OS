@@ -19,15 +19,14 @@ namespace MyCraft {
 
                 bool found = false;
                 // check if it exists
-                for (int i = 0; i < world.size(); i++) {
-                    auto chunk = &world[i];
-                    if (chunk->chunk_x == chunk_x && chunk->chunk_z == chunk_z) {
-                        chunk->is_edge = is_edge;
-                        if (!chunk->has_terrain) {
-                            Generate_terrain(chunk_x, chunk_z, chunk);
-                            Generate_mesh(chunk);
+                for (auto &chunk : world) {
+                    if (chunk.chunk_x == chunk_x && chunk.chunk_z == chunk_z) {
+                        chunk.is_edge = is_edge;
+                        if (!chunk.has_terrain) {
+                            Generate_terrain(chunk_x, chunk_z, &chunk);
                         }
-                        if (chunk->has_terrain && !chunk->is_edge && !chunk->has_mesh) {
+                        if (chunk.has_terrain && !chunk.is_edge && !chunk.has_mesh) {
+                            Generate_mesh(&chunk);
                         }
                         found = true;
                         break;
@@ -36,14 +35,13 @@ namespace MyCraft {
                 if (found)
                     continue;
 
-                Chunk *chunk = new Chunk;
-                chunk->is_edge = is_edge;
+                Chunk chunk = {};
+                chunk.is_edge = is_edge;
 
-                Generate_terrain(chunk_x, chunk_z, chunk);
-                //if (!is_edge)
-                    Generate_mesh(chunk);
-                world.push_back(*chunk);
-                //delete chunk;
+                Generate_terrain(chunk_x, chunk_z, &chunk);
+                if (!is_edge)
+                    Generate_mesh(&chunk);
+                world.push_back(std::move(chunk));
             }
         }
     }
