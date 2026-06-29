@@ -50,12 +50,13 @@ namespace fs::FAT32 {
     }
 
     void fat32_manager::read(uint32_t first_cluster, uint8_t partition, int8_t depth, int8_t origin_d) {
+        if (depth < 0) return;
         auto fat = fat_partitions[partition];
         if (first_cluster == 0)
             first_cluster = fat.bpb.ebpb.root_directory_cluster;
 
         const uint32_t cluster_size = fat.bpb.bytes_per_sector * fat.bpb.sectors_per_cluster;
-        std::kernel::printf("cluster size: %u\n", cluster_size);
+        //std::kernel::printf("cluster size: %u\n", cluster_size);
 
         const uint32_t lba = fat.data_start + (first_cluster - 2) * fat.bpb.sectors_per_cluster;
 

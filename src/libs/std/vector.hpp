@@ -30,6 +30,14 @@ namespace std {
             return m_size == 0;
         }
 
+        [[nodiscard]] T* begin() const {
+            return m_data;
+        }
+
+        [[nodiscard]] T* end() const {
+            return m_data + m_size;
+        }
+
         void clear() {
             for (uint64_t i = 0; i < m_size; i++)
                 m_data[i].~T();

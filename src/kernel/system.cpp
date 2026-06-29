@@ -78,8 +78,8 @@ namespace systemPL {
 
         log::info("HPET:\n"); fb.swap();
 
-        hpet::init();
-        lapic::calibrate_lapic_timer();
+        //hpet::init();
+        //lapic::calibrate_lapic_timer();
 
         RTL8139::driver.Init();
 
@@ -101,17 +101,6 @@ namespace systemPL {
                                 "\tFirmware version: %s\n"
                                 "\tSize: %f%s\n", i, device.get_model(), device.get_firmware(), size, std::format_size(size));
 
-            //auto buffer = static_cast<u16*>(heap::malloc_align(device.get_sector_size(), 4));
-            //mem::memset(buffer, 0, device.get_sector_size());
-            //const auto value = "Hello World!\n";
-            //mem::memmove(buffer, value, std::strlen(value));
-            //device.write(0, 1, buffer);
-            //heap::free_align(buffer);
-            //
-            //buffer = static_cast<u16*>(heap::malloc_align(device.get_sector_size(), 4));
-            //device.read(0, 1, buffer);
-            //std::kernel::printf("Read output: %s", buffer);
-            //heap::free_align(buffer);
         }
 
 
@@ -122,9 +111,9 @@ namespace systemPL {
         partition_manager.list_partitions();
         fs::FAT32::fat32_manager fat_manager;
         fat_manager.init(device);
+        //fat_manager.read(0, 0, 2, 2);
+        //log::info("");
         fat_manager.read(0, 3, 2, 2);
-        log::info("");
-        fat_manager.read(0, 0, 1, 1);
         fb.swap();
 
         enter_user_space();

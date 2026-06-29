@@ -66,8 +66,9 @@ extern "C" u64 dispatch_syscall(u64 id, u64 arg1, u64 arg2, u64 arg3) {
         }
 
 	    case syscall_id::get_key:
-            if (arg1 == true)
+            if (arg1 == true) {
                 return static_cast<u64>(kb::get_char());
+            }
             return static_cast<u64>(kb::read_char());
 
         case syscall_id::exit:

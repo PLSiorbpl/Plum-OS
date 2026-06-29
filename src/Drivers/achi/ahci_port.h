@@ -191,7 +191,7 @@ namespace drivers::ahci {
         command_slot command_slots[32];
     public:
         bool active = false;
-        volatile bool has_received_command_data = false;
+        volatile bool has_received_command_data[32] = { false };
         bool bits_is_64 = false;
         volatile bool has_errored = false;
         port_type type;

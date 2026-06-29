@@ -30,6 +30,7 @@ namespace kb {
 
         uint8_t sc;
         buf.pop(sc);
+        buf.clear();
         return static_cast<key_code>(sc);
     }
 

@@ -4,6 +4,7 @@
 #include "arch/x86_64/Common/Common.hpp"
 #include "kernel/log.h"
 #include "kernel/Memory/mem_helper.h"
+#include "std/math.hpp"
 #include "std/mem_common.hpp"
 
 namespace drivers::ahci {
@@ -160,32 +161,33 @@ namespace drivers::ahci {
         auto& header = command_list[slot];
         header.fis_length = sizeof(fis::reg_h2d) / sizeof(uint32_t);
         header.write = 0;
-        header.prd_table_length = static_cast<uint16_t>((count - 1) / sectors_per_prdt) + 1;
         header.prefetchable = true;
         header.clear = true;
-
-        if (header.prd_table_length > MAX_PRDT_SIZE)
-            return false;
 
         const auto table = command_slots[slot].table;
         mem::memset(table, 0, sizeof(command_table));
 
-        // 8K bytes (16 sectors) per PRDT
-        for (int i = 0; i < header.prd_table_length - 1; i++)
-        {
-            table->prdt[i].data_base_address = static_cast<uint32_t>(to_physical(reinterpret_cast<u64>(buffer)));
-            table->prdt[i].data_base_address_upper = bits_is_64 ? static_cast<uint32_t>(to_physical(reinterpret_cast<u64>(buffer)) >> 32) : 0;
-            table->prdt[i].data_byte_count = 8 * 1024 - 1; // 8K bytes (this value should always be set to 1 less than the actual value)
-            table->prdt[i].interrupt_on_complete = true;
-            buffer += 4 * 1024;	// 4K words
-            count -= sectors_per_prdt; // 16 sectors
-        }
+        u64 vbuf = reinterpret_cast<u64>(buffer);
+        u32 remaining_bytes = count * sector_size;
+        int i = 0;
+        while (remaining_bytes > 0) {
+            if (i >= MAX_PRDT_SIZE)
+                return false; // would overflow the PRDT table
 
-        // Last entry
-        table->prdt[header.prd_table_length - 1].data_base_address = static_cast<uint32_t>(to_physical(reinterpret_cast<u64>(buffer)));
-        table->prdt[header.prd_table_length - 1].data_base_address_upper = bits_is_64 ? static_cast<uint32_t>(to_physical(reinterpret_cast<u64>(buffer)) >> 32) : 0;
-        table->prdt[header.prd_table_length - 1].data_byte_count = count * sector_size - 1; // 512 bytes per sector
-        table->prdt[header.prd_table_length - 1].interrupt_on_complete = true;
+            u64 phys = to_physical(vbuf);
+            u32 page_offset = phys & 0xFFF;
+            u32 max_this_entry = std::min<u32>(4096 - page_offset, remaining_bytes);
+
+            table->prdt[i].data_base_address = static_cast<uint32_t>(phys);
+            table->prdt[i].data_base_address_upper = bits_is_64 ? static_cast<uint32_t>(phys >> 32) : 0;
+            table->prdt[i].data_byte_count = max_this_entry - 1;
+            table->prdt[i].interrupt_on_complete = (remaining_bytes - max_this_entry == 0);
+
+            vbuf += max_this_entry;
+            remaining_bytes -= max_this_entry;
+            i++;
+        }
+        header.prd_table_length = i;
 
         const auto command_fis = reinterpret_cast<fis::reg_h2d*>(table->command_fis);
         mem::memset(command_fis, 0, sizeof(fis::reg_h2d));
@@ -274,7 +276,6 @@ namespace drivers::ahci {
     void ahci_port::on_interrupt() {
         const auto is_val = (*reinterpret_cast<const volatile u32*>(&port->interrupt_status));
         const interrupts is = *reinterpret_cast<const interrupts*>(&is_val);
-        clear_interrupt_errors();
 
         if (is.cold_port_detect_interrupt)
             log::warn("AHCI: Device on port %i has been removed or unable to be detected!", port_num);
@@ -305,7 +306,7 @@ namespace drivers::ahci {
         if (is.port_connect_change_interrupt)
             log::warn("AHCI: device connected/disconnected on port %i", port_num);
         if (is.device_to_host_fis_interrupt)
-            has_received_command_data = true;
+            has_received_command_data[port_num] = true;
 
         if (has_errored) { // fatal error so do error recovery
             const u8 error_slot = (port->command_status >> 8) & 0x1F;
@@ -325,6 +326,7 @@ namespace drivers::ahci {
                     port->command_issue |= (1 << i);
             }
         }
+        clear_interrupt_errors();
     }
 
     bool ahci_port::issue_command(const u8 slot) {
@@ -337,8 +339,8 @@ namespace drivers::ahci {
             return false;
 
         for (int i = 0; i < 10000000; ++i) {
-            if (has_received_command_data) {
-                has_received_command_data = false;
+            if (has_received_command_data[slot]) {
+                has_received_command_data[slot] = false;
                 return true;
             }
         }
