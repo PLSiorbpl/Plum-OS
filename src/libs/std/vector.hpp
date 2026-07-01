@@ -15,6 +15,9 @@ namespace std {
             for (uint64_t i = 0; i < m_size; i++)
                 m_data[i].~T();
             heap::free(m_data);
+            m_capacity = 0;
+            m_size = 0;
+            m_data = nullptr;
         }
 
         vector(vector&& other) noexcept : m_data(other.m_data), m_size(other.m_size), m_capacity(other.m_capacity) {
@@ -69,6 +72,28 @@ namespace std {
             m_size = 0;
         }
 
+        void shrink_to_fit() {
+            if (m_size == m_capacity)
+                return;
+
+            if (m_size == 0)
+            {
+                heap::free(m_data);
+                m_data = nullptr;
+                m_capacity = 0;
+                return;
+            }
+
+            reserve(m_size);
+        }
+
+        void release() {
+            clear();
+            heap::free(m_data);
+            m_data = nullptr;
+            m_capacity = 0;
+        }
+
         void reserve(const uint64_t new_size) {
             if (new_size <= m_capacity) return;
 
@@ -92,14 +117,18 @@ namespace std {
             m_size++;
         }
 
-        T pop_back() {
+        void pop_back() {
+            if (m_size == 0)
+                return;
             m_size--;
-            T ret(std::move(m_data[m_size]));
             m_data[m_size].~T();
-            return ret;
         }
 
         T& back() {
+            return m_data[m_size - 1];
+        }
+
+        const T& back() const {
             return m_data[m_size - 1];
         }
 

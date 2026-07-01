@@ -21,7 +21,7 @@ namespace fs::partition {
     void partition_manager::init(drivers::ahci::ahci_device& dev) {
         device = &dev;
 
-        const auto buf = static_cast<u16*>(heap::malloc_align(512, 4));
+        const auto buf = static_cast<u16*>(heap::malloc_align(512, 0x1000));
         if (!dev.read(1, 1, buf)) {
             log::error("[ GPT ] Failed to read partition header.");
             return;
@@ -38,7 +38,7 @@ namespace fs::partition {
 
         const u32 total_size = header->partition_entry_size * header->partition_entry_count;
         const u32 sectors = total_size / dev.get_sector_size();
-        const auto partitions_buf = static_cast<u16*>(heap::malloc_align(total_size, 4));
+        const auto partitions_buf = static_cast<u16*>(heap::malloc_align(total_size, 0x1000));
 
         if (!dev.read(header->partition_entry_lba, sectors, partitions_buf)) {
             heap::free_align(partitions_buf);
@@ -103,7 +103,7 @@ namespace fs::partition {
     }
 
     bool partition_manager::get_partition(u32 id, gpt_partition &partition) {
-        if (id >= header->partition_entry_count)
+        if (id >= partitions.size())
             return false;
         auto tmp = &partitions[id];
         if (mem::memcmp(tmp->type_guid, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) == true)

@@ -1,4 +1,6 @@
 #include "main.hpp"
+#include "User_Programs/Chess/main.hpp"
+
 #include "Drivers/GPU/OpenPL/OpenPL.hpp"
 #include "kernel/Memory/heap.hpp"
 #include "arch/x86_64/syscall/syscall.h"
@@ -20,8 +22,6 @@ namespace MyCraft {
         // One of legacy resolutions
         setup_window(480, 360);
 
-        world.reserve(256);
-
         uni.cam = {0, -2.0f, 0};
 
         glm::ivec2 cam_chunk{};
@@ -33,12 +33,13 @@ namespace MyCraft {
 
             if (cam_chunk != last_cam_chunk) {
                 GenerateChunks(cam_chunk, 4);
+                RemoveChunks(cam_chunk, 4);
                 last_cam_chunk = cam_chunk;
             }
 
 
             if (key == kb::key_code::KEY_ESC) {
-                std::printf("Exiting MyCraft\n");
+                exit();
                 return;
             }
             if (key == kb::key_code::KEY_A)
@@ -53,12 +54,14 @@ namespace MyCraft {
                 uni.cam.y += 0.1f;
             if (key == kb::key_code::KEY_E)
                 uni.cam.y -= 0.1f;
-            cam_chunk.x = std::floor(-uni.cam.x / 8.0f);
-            cam_chunk.y = std::floor(-uni.cam.z / 8.0f);
+            cam_chunk.x = -std::floor(uni.cam.x / static_cast<float>(Chunk::width));
+            cam_chunk.y = -std::floor(uni.cam.z / static_cast<float>(Chunk::depth));
 
             ctx.Clear(0x303030);
 
-            ctx.set_uniform_ptr(reinterpret_cast<uint8_t *>(&uni)); // We have to do this every time something changes in uniforms
+            ctx.set_uniform_ptr(reinterpret_cast<uint8_t *>(&uni));
+            ctx.set_vertex_attr_type(0, AttributeType::ATTR_VEC3); // Position
+            ctx.set_vertex_attr_type(1, AttributeType::ATTR_VEC3); // Color
             for (auto &chunk : world) {
                 chunk.Draw();
             }
@@ -67,7 +70,7 @@ namespace MyCraft {
         }
     }
 
-    void setup_window(int w, int h) {
+    void setup_window(const int w, const int h) {
         // Now we can create a pipeline
         pipeline.Vertex_shader = vshader;
         pipeline.Fragment_shader = frshader;
@@ -81,14 +84,29 @@ namespace MyCraft {
         framebuffer.width = w;
         framebuffer.height = h;
         auto *raw_framebuffer = static_cast<uint32_t *>(heap::malloc(w * h * (framebuffer.bpp/8)));
-        auto *raw_depthkbuffer = static_cast<float *>(heap::malloc(w * h * sizeof(float)));
-        if (raw_framebuffer == nullptr || raw_depthkbuffer == nullptr) {
+        auto *raw_depthbuffer = static_cast<float *>(heap::malloc(w * h * sizeof(float)));
+        if (raw_framebuffer == nullptr || raw_depthbuffer == nullptr) {
             heap::free(raw_framebuffer);
-            heap::free(raw_depthkbuffer);
+            heap::free(raw_depthbuffer);
             return;
         }
         framebuffer.framebuffer = raw_framebuffer;
-        framebuffer.depthbuffer = raw_depthkbuffer;
+        framebuffer.depthbuffer = raw_depthbuffer;
         ctx.bind_framebuffer(framebuffer);
+    }
+
+    void exit() {
+        std::print("&cExiting &fMyCraft\n");
+        std::print("\t&cDeleting Chunks\n");
+        while (!world.empty()) {
+            auto &chunk = world.back();
+            chunk.mesh.clear();
+            world.pop_back();
+        }
+        world.release();
+        std::print("\t&cDeleting OpenPL Context\n");
+        heap::free(framebuffer.framebuffer);
+        heap::free(framebuffer.depthbuffer);
+        ctx.Delete_ctx();
     }
 }

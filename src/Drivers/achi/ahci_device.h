@@ -19,9 +19,10 @@ namespace drivers::ahci {
                 return false;
             i32 remaining = count;
             u64 current_sector = start;
-            const auto temp = static_cast<u16 *>(heap::malloc_align(4096*2, 128));
+            const auto temp = static_cast<u16 *>(heap::malloc_align(4096*2, 0x1000));
             while (remaining > 0) {
                 if (!read(current_sector, 1, temp)) {
+                    heap::free_align(temp);
                     return false;
                 }
                 const auto size = remaining < sector_size ? remaining : sector_size;

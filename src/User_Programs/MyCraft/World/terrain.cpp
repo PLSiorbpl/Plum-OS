@@ -1,5 +1,6 @@
 #include "terrain.hpp"
 #include "chunk.hpp"
+#include "std/math.hpp"
 
 namespace MyCraft {
     void Generate_terrain(int chunk_x, int chunk_z, Chunk *chunk) {
@@ -11,7 +12,7 @@ namespace MyCraft {
             for (int z = 0; z < chunk->depth; z++) {
                 for (int y = 0; y < chunk->height; y++) {
                     if (y == 0)
-                        chunk->set(x, y, z, Chunk::Block(1, 0));
+                        chunk->set(x, y, z, Chunk::Block(std::abs((chunk_z + chunk_x)%2)+1, 0));
                     else
                         chunk->set(x, y, z, Chunk::Block(0, 0));
                 }

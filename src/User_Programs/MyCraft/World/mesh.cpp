@@ -8,12 +8,13 @@ namespace MyCraft {
         for (int x = 0; x < chunk->width; x++) {
             for (int z = 0; z < chunk->depth; z++) {
                 for (int y = 0; y < chunk->height; y++) {
-                    if (chunk->get(x,y,z).id != 0) {
+                    const auto block = chunk->get(x, y, z);
+                    if (block.id != 0) {
 
                         auto push = [&](const int x_, const int y_, const int z_) {
                             Chunk::Vertex v;
                             v.pos = glm::vec3(x_, y_, z_);
-                            v.color = glm::vec3(0.0f, 0.5f, 1.0f);
+                            v.color = glm::vec3(0.0f, 0.5f, block.id-1);
                             chunk->mesh.push_back(v);
                         };
 

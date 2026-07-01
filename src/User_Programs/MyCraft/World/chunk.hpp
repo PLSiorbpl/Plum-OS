@@ -55,8 +55,6 @@ namespace MyCraft {
 
         void Draw() {
             ctx.bind_vertex_buffer(reinterpret_cast<uint8_t *>(mesh.m_data), mesh.size());
-            ctx.set_vertex_attr_type(0, OpenPL::AttributeType::ATTR_VEC3); // Position
-            ctx.set_vertex_attr_type(1, OpenPL::AttributeType::ATTR_VEC3); // Color
 
             ctx.Draw(OpenPL::PrimitiveType::TRIANGLES, 0, mesh.size());
         }

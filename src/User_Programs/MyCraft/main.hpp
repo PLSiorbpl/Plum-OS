@@ -16,4 +16,5 @@ namespace MyCraft {
 
     void main(int argc, char** argv);
     void setup_window(int w, int h);
+    void exit();
 }

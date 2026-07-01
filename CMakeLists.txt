@@ -137,10 +137,8 @@ set(QEMU_FLAGS
         -drive file=${FAT32_IMG},format=raw,if=none,id=hd0
         # ----- USB -----
         -device qemu-xhci,id=xhci
-        #-device usb-storage,drive=usbstick
-        #-drive if=none,id=usbstick,file=${USB_IMG},format=raw
+        -device usb-mouse
         -device virtio-keyboard-pci
-        -device virtio-mouse-pci
         # ----- NET -----
         -netdev tap,id=n0,ifname=tap0,script=no,downscript=no
         -device rtl8139,netdev=n0

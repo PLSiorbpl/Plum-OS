@@ -19,6 +19,16 @@ namespace USB {
     } __attribute__((packed));
     static_assert(sizeof(usb_descriptor_header) == 2);
 
+    struct xhci_evaluate_context_command_trb_t {
+        uint64_t input_context_physical_base;
+        uint32_t rsvd        : 22;
+        uint32_t rsvd1       : 9;
+        uint32_t cycle_bit   : 1;
+        uint32_t trb_type    : 6;
+        uint32_t rsvd2       : 16;
+        uint32_t slot_id     : 8;
+    } __attribute__((packed));
+
     struct usb_device_descriptor {
         usb_descriptor_header header;
         uint16_t bcdUsb;
@@ -145,6 +155,8 @@ namespace USB {
         int32_t _send_control_transfer(xhci_device* device,xhci_device_request_packet& request,void* buffer, uint32_t length);
 
         uint32_t _read_mfindex() const;
+
+        void _evaluate_context(const xhci_device* device);
     };
 
     extern xhci_driver m_xhci_driver;

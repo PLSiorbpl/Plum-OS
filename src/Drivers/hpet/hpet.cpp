@@ -112,12 +112,22 @@ namespace hpet {
     }
 
     void sleep(const u64 ticks) {
+        const u64 HPET_MIN_DELTA = 10*ticks_per_us;
         for (u8 i = 0; i < 32; i++) {
             auto& timer = timers[i];
             if (!timer.does_exists() || is_timer_armed[i] == true)
                 continue;
-            timer.set(*read(MAIN_COUNTER_REGISTER_OFFSET) + ticks);
-            while (is_timer_armed[i] == true) { x64::halt(); }
+
+            const u64 target = *read(MAIN_COUNTER_REGISTER_OFFSET) + ticks + HPET_MIN_DELTA;
+            timer.set(target);
+
+            while (is_timer_armed[i] == true) {
+                if (*read(MAIN_COUNTER_REGISTER_OFFSET) >= target) {
+                    is_timer_armed[i] = false;
+                    break;
+                }
+                x64::halt();
+            }
             break;
         }
     }
