@@ -19,6 +19,10 @@ namespace fs::partition {
     }
 
     void partition_manager::init(drivers::ahci::ahci_device& dev) {
+        if (!dev.is_active()) {
+            log::error("Device is inactive");
+            return;
+        }
         device = &dev;
 
         const auto buf = static_cast<u16*>(heap::malloc_align(512, 0x1000));

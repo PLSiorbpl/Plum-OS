@@ -25,8 +25,7 @@ namespace MyCraft {
         uni.cam = {0, -2.0f, 0};
 
         glm::ivec2 cam_chunk{};
-        auto last_cam_chunk = glm::ivec2(9999);
-        auto old_cam = glm::vec3(9999);
+        auto last_cam_chunk = glm::ivec2(9999999);
 
         while (true) {
             kb::key_code key = sys_get_key(false);
@@ -62,7 +61,7 @@ namespace MyCraft {
             ctx.set_uniform_ptr(reinterpret_cast<uint8_t *>(&uni));
             ctx.set_vertex_attr_type(0, AttributeType::ATTR_VEC3); // Position
             ctx.set_vertex_attr_type(1, AttributeType::ATTR_VEC3); // Color
-            for (auto &chunk : world) {
+            for (auto &chunk : World::world) {
                 chunk.Draw();
             }
 
@@ -96,15 +95,15 @@ namespace MyCraft {
     }
 
     void exit() {
-        std::print("&cExiting &fMyCraft\n");
-        std::print("\t&cDeleting Chunks\n");
-        while (!world.empty()) {
-            auto &chunk = world.back();
+        std::printf("&cExiting &fMyCraft\n");
+        std::printf("\t&cDeleting Chunks\n");
+        while (!World::world.empty()) {
+            auto &chunk = World::world.back();
             chunk.mesh.clear();
-            world.pop_back();
+            World::world.pop_back();
         }
-        world.release();
-        std::print("\t&cDeleting OpenPL Context\n");
+        World::world.release();
+        std::printf("\t&cDeleting OpenPL Context\n");
         heap::free(framebuffer.framebuffer);
         heap::free(framebuffer.depthbuffer);
         ctx.Delete_ctx();

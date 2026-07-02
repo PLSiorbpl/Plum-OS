@@ -3,5 +3,9 @@
 #include "std/vector.hpp"
 
 namespace MyCraft {
-    extern std::vector<Chunk> world;
+    namespace World {
+        extern std::vector<Chunk> world;
+
+        Chunk *chunk_find(int chunkX, int chunkZ);
+    }
 }

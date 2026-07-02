@@ -135,6 +135,9 @@ set(QEMU_FLAGS
         -device ahci,id=ahci
         -device ide-hd,drive=hd0,bus=ahci.0
         -drive file=${FAT32_IMG},format=raw,if=none,id=hd0
+        # ----- NVME -----
+        #-device nvme,drive=NVME1,serial=nvme-1
+        #-drive file=${FAT32_IMG},format=raw,if=none,id=NVME1
         # ----- USB -----
         -device qemu-xhci,id=xhci
         -device usb-mouse

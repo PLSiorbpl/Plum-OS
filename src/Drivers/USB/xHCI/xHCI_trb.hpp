@@ -34,6 +34,20 @@ namespace USB {
     } xhci_command_completion_trb_t;
     static_assert(sizeof(xhci_command_completion_trb_t) == sizeof(uint32_t) * 4);
 
+    struct xhci_port_status_change_trb_t {
+        uint32_t reserved0;
+
+        uint32_t reserved1;
+
+        uint32_t reserved2;
+
+        uint32_t cycle : 1;
+        uint32_t reserved3 : 9;
+        uint32_t trb_type : 6;
+        uint32_t port_id : 8;
+        uint32_t reserved4 : 8;
+    } __attribute__((packed));
+
     typedef struct xhci_address_device_request_block {
         uint64_t input_context_physical_base;
         uint32_t rsvd;

@@ -14,6 +14,10 @@ namespace fs::FAT32 {
     }
 
     void fat32_manager::init(drivers::ahci::ahci_device &dev) {
+        if (!dev.is_active()) {
+            log::error("[ FAT32 ] Device is inactive");
+            return;
+        }
         fat_partitions.clear();
         device = &dev;
         part_manager.init(*device);
@@ -24,12 +28,14 @@ namespace fs::FAT32 {
             // Get parition candidate
             if (!part_manager.get_partition(i, fat->gpt_partition)) {
                 heap::free_align(fat);
+                log::warn("[ FAT32 ] Failed to get partition: #%u", i);
                 continue;
             }
 
             // Read its BPB
             if (!device->read_bytes(fat->gpt_partition.starting_lba, sizeof(BPB), reinterpret_cast<u16 *>(&fat->bpb))) {
                 heap::free_align(fat);
+                log::warn("[ FAT32 ] Failed to read BPB: lba=%l size=%u", (uint64_t)fat->gpt_partition.starting_lba, sizeof(BPB));
                 continue;
             }
 
@@ -64,8 +70,10 @@ namespace fs::FAT32 {
 
     void fat32_manager::read(uint32_t first_cluster, uint8_t partition, int8_t depth, int8_t origin_d) {
         if (depth < 0) return;
-        if (partition >= fat_partitions.size())
+        if (partition >= fat_partitions.size()) {
+            log::error("No partition: %u", partition);
             return;
+        }
 
         auto fat = fat_partitions[partition];
         if (first_cluster == 0)
@@ -73,12 +81,13 @@ namespace fs::FAT32 {
 
         const uint32_t cluster_size = fat.bpb.bytes_per_sector * fat.bpb.sectors_per_cluster;
 
-        const uint32_t lba = fat.data_start + (first_cluster - 2) * fat.bpb.sectors_per_cluster;
+        const uint64_t lba = fat.data_start + (first_cluster - 2) * fat.bpb.sectors_per_cluster;
 
         auto *buffer = static_cast<file_entry *>(heap::malloc_align(cluster_size, 0x1000));
 
         if (!device->read_bytes(lba, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
             heap::free_align(buffer);
+            log::error("[ FAT32 ] Failed to read cluster: lba=%l cluster_size=%u", lba, cluster_size);
             return;
         }
 
@@ -99,7 +108,7 @@ namespace fs::FAT32 {
                 continue;
 
             if (entry[i].attributes == 0x08) {
-                std::kernel::printf("VOLUME: %s\n", short_name);
+                std::kernel::printf("&eVOLUME: %s\n", short_name);
                 continue;
             }
 
