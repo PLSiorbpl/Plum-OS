@@ -41,7 +41,7 @@ namespace IDT {
     isr_t custom_handlers[256][4] = {{nullptr}};
     uint8_t custom_handlers_count[256] = {0};
 
-    void Install_handler(const isr_t handler, const uint8_t irq_no) {
+    void Install_handler(const isr_t handler, const uint8_t irq_no, bool iso) {
         if (!handler) {
             log::error("[ IDT ] Install_handler &cERROR&f: &anull handler");
             return;
@@ -61,10 +61,16 @@ namespace IDT {
 
         if (custom_handlers_count[vector] == 0) {
             log::info("[ IDT ] Installed &afirst &7handler for IRQ &a%u", irq_no);
-            const auto iso = apic::IOAPIC::resolve_irq(irq_no);
-            systemPL::ioapic.route(iso.gsi, vector, apic::IOAPIC::Fixed,
-                                   iso.level_triggered ? apic::IOAPIC::TriggerMode::LEVEL : apic::IOAPIC::TriggerMode::EDGE,
-                                   iso.active_low, false);
+            if (iso) {
+                const auto iso = apic::IOAPIC::resolve_irq(irq_no);
+                systemPL::ioapic.route(iso.gsi, vector, apic::IOAPIC::Fixed,
+                                       iso.level_triggered ? apic::IOAPIC::TriggerMode::LEVEL : apic::IOAPIC::TriggerMode::EDGE,
+                                       iso.active_low, false);
+            }
+            else {
+                systemPL::ioapic.route(irq_no, vector, apic::IOAPIC::Fixed, apic::IOAPIC::LEVEL, true, false);
+            }
+
         } else {
             log::success("[ IDT ] &aAdded shared &7handler for IRQ &a%u", irq_no);
         }
