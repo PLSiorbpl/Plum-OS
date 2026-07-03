@@ -23,7 +23,8 @@ namespace hpet {
         config.enable_32b = false;
         config.enable_fsb = false;
         config.enable_periodic = false;
-        for (auto i = 0; i < 30; i++) {
+        vec = 0xFF;
+        for (auto i = 0; i < 32; i++) {
             if ((config.supported_interrupt_vectors & (1 << i)) && !(used_vectors & (1 << i))) {
                 used_vectors |= (1 << i);
                 vec = i;
@@ -37,7 +38,7 @@ namespace hpet {
                             break;
                         }
                     }
-                }, vec);
+                }, vec, false);
                 break;
             }
         }

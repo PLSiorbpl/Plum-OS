@@ -40,7 +40,7 @@ namespace IDT {
 
     void set_IDT_entry(IDTEntry& entry, void* handler);
     void IDT_Install();
-    void Install_handler(isr_t handler, uint8_t irq_no);
+    void Install_handler(isr_t handler, uint8_t irq_no, bool iso = true);
     void install_uacpi_handler(uacpi_interrupt_handler handler, uint8_t vector, uacpi_handle ctx);
     void PIC_Remap(uint8_t offset1, uint8_t offset2);
 
