@@ -76,7 +76,7 @@ extern "C" u64 dispatch_syscall(u64 id, u64 arg1, u64 arg2, u64 arg3) {
 
         case syscall_id::sleep:
             systemPL::fb.swap(); // TODO remove all the swaps everywhere and just keep swapping at a fixed itnerval on a separate thread when we have threads
-            hpet::sleep_us(arg1);
+            Time::Sleep(arg1);
             return 0;
 
         case syscall_id::pci:

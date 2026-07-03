@@ -14,8 +14,14 @@ namespace Time {
      10ms accuracy  (means 4ms is technically still 0ms)
     */
     void Sleep(const uint64_t t) {
-        hpet::sleep_ms(t);
+        //hpet::sleep_ms(t);
+        const uint64_t end = tick + ((t * hz) / 1000);
+
+        while (tick < end) {
+            x64::halt();
+        }
     }
+
 
     /*
      1000 -> 1s, 500 -> 0.5s

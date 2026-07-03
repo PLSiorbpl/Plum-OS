@@ -87,7 +87,7 @@ Command commands[12] = {
                 if (us)
                     unit_str = "micro-seconds";
                 std::printf("&a%s\n", std::Output::std_out, unit_str);
-                auto time = unit ? wait * 1000000 : wait * 1000;
+                auto time = unit ? wait * 1000 : wait * 1000; // 1000000
                 if (us)
                     time = wait;
                 sys_sleep(time);

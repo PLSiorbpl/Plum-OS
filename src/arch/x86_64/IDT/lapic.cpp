@@ -3,6 +3,7 @@
 #include "APIC.hpp"
 #include "Drivers/hpet/hpet.h"
 #include "kernel/log.h"
+#include "kernel/Sleep.hpp"
 
 namespace lapic {
 
@@ -37,6 +38,7 @@ namespace lapic {
         }
 
         const u32 initial = (ticks_per_ms * 1000) / 100;
+        Time::hz = 100;
 
         apic::write_apic(LAPIC_REG_LVT_TIMER, 32 | (1 << 17)); // periodic
         apic::write_apic(LAPIC_REG_TIMER_INITCNT, initial);
