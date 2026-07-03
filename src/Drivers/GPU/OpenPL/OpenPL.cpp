@@ -146,6 +146,8 @@ namespace OpenPL {
                 const float invArea = 1.0f / area;
                 const float near_plane = pipeline.near_plane;
                 const float far_plane = pipeline.far_plane;
+                if (p1.position.z <= near_plane || p2.position.z <= near_plane || p3.position.z <= near_plane)
+                    continue;
 
                 const int x_min = std::max(std::floor(std::min(std::min(p1_screen.x, p2_screen.x), p3_screen.x)), 0);
                 const int y_min = std::max(std::floor(std::min(std::min(p1_screen.y, p2_screen.y), p3_screen.y)), 0);

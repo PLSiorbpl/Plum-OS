@@ -42,9 +42,6 @@ namespace systemPL {
         heap::heap_init(1024*1024*256, heap_addr);
         Paging::Map_memory_vp(heap_addr, to_physical(heap_addr), 1024*1024*256, Paging::Profile::KernelData);
 
-        // Paging
-        //Paging::Map_memory(0x0, 1024*1024*96, Paging::Profile::UserCode);
-
         u64 kernel_size = reinterpret_cast<u64>(&Linker::__kernel_end) - reinterpret_cast<u64>(&Linker::__kernel_start);
         Paging::Map_memory_vp(kernel_address_vert, kernel_address_phys, kernel_size, Paging::Profile::KernelCode | Paging::Writable);
 
@@ -81,12 +78,14 @@ namespace systemPL {
         hpet::init();
         lapic::calibrate_lapic_timer();
 
+        log::info("RTL:\n"); fb.swap();
         RTL8139::driver.Init();
 
+        log::info("PS2:\n"); fb.swap();
         drivers::ps2::init(acpi);
         acpi.enumerate_bus();
 
-        log::info("\n"); fb.swap();
+        log::info("aHCI:\n"); fb.swap();
 
         ahci.init();
         for (int i = 0; i < 32; ++i) {
@@ -101,30 +100,22 @@ namespace systemPL {
                                 "\tFirmware version: %s\n"
                                 "\tSize: %f%s\n", i, device.get_model(), device.get_firmware(), size, std::format_size(size));
 
-            //auto buffer = static_cast<u16*>(heap::malloc_align(device.get_sector_size(), 4));
-            //mem::memset(buffer, 0, device.get_sector_size());
-            //const auto value = "Hello World!\n";
-            //mem::memmove(buffer, value, std::strlen(value));
-            //device.write(0, 1, buffer);
-            //heap::free_align(buffer);
-            //
-            //buffer = static_cast<u16*>(heap::malloc_align(device.get_sector_size(), 4));
-            //device.read(0, 1, buffer);
-            //std::kernel::printf("Read output: %s", buffer);
-            //heap::free_align(buffer);
         }
 
 
-        Time::Sleep(100);
+        log::info("FAT32:\n"); fb.swap();
 
         auto device = ahci.request_device(0);
         partition_manager.init(device);
         partition_manager.list_partitions();
         fs::FAT32::fat32_manager fat_manager;
         fat_manager.init(device);
-        fat_manager.read(0, 3, 2, 2);
-        log::info("");
-        fat_manager.read(0, 0, 1, 1);
+
+        log::info("xHCI:\n"); fb.swap();
+
+        USB::m_xhci_driver.init_device();
+        USB::m_xhci_driver.start_device();
+
         fb.swap();
 
         enter_user_space();

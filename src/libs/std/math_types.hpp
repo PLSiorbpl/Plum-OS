@@ -54,6 +54,9 @@ namespace glm {
         friend bool operator==(const vec2& l, const vec2& r) {
             return (l.x == r.x) && (l.y == r.y);
         }
+        friend bool operator!=(const vec2& l, const vec2& r) {
+            return (l.x != r.x) || (l.y != r.y);
+        }
         float& operator[](const int index) {
             return (&x)[index];
         }
@@ -114,6 +117,9 @@ namespace glm {
         }
         friend bool operator==(const ivec2& l, const ivec2& r) {
             return (l.x == r.x) && (l.y == r.y);
+        }
+        friend bool operator!=(const ivec2& l, const ivec2& r) {
+            return (l.x != r.x) || (l.y != r.y);
         }
         int& operator[](const int index) {
             return (&x)[index];
@@ -187,6 +193,9 @@ namespace glm {
         }
         friend bool operator==(const vec3& l, const vec3& r) {
             return (l.x == r.x) && (l.y == r.y) && (l.z == r.z);
+        }
+        friend bool operator!=(const vec3& l, const vec3& r) {
+            return (l.x != r.x) || (l.y != r.y) || (l.z != r.z);
         }
         float& operator[](const int index) {
             return (&x)[index];
@@ -273,6 +282,9 @@ namespace glm {
         }
         friend bool operator==(const vec4& l, const vec4& r) {
             return (l.x == r.x) && (l.y == r.y) && (l.z == r.z) && (l.w == r.w);
+        }
+        friend bool operator!=(const vec4& l, const vec4& r) {
+            return (l.x != r.x) || (l.y != r.y) || (l.z != r.z) || (l.w != r.w);
         }
         float& operator[](const int index) {
             return (&x)[index];

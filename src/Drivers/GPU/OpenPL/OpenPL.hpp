@@ -116,6 +116,10 @@ namespace OpenPL {
         void Draw(PrimitiveType primitive, uint64_t start, uint64_t num_of_vert);
 
         void Swap() const;
+
+        void Delete_ctx() {
+            vertex_cache.clear();
+        }
     private:
         std::vector<Shader::VS_ShaderOut> vertex_cache;
         bool vbo_updated = true;

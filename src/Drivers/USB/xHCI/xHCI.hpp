@@ -11,30 +11,7 @@ namespace USB {
         return (type << 8) | index;
     }
 
-    constexpr uint8_t USB_DESCRIPTOR_DEVICE                          = 0x01;
-
-    struct usb_descriptor_header {
-        uint8_t bLength;
-        uint8_t bDescriptorType;
-    } __attribute__((packed));
-    static_assert(sizeof(usb_descriptor_header) == 2);
-
-    struct usb_device_descriptor {
-        usb_descriptor_header header;
-        uint16_t bcdUsb;
-        uint8_t bDeviceClass;
-        uint8_t bDeviceSubClass;
-        uint8_t bDeviceProtocol;
-        uint8_t bMaxPacketSize0;
-        uint16_t idVendor;
-        uint16_t idProduct;
-        uint16_t bcdDevice;
-        uint8_t iManufacturer;
-        uint8_t iProduct;
-        uint8_t iSerialNumber;
-        uint8_t bNumConfigurations;
-    } __attribute__((packed));
-    static_assert(sizeof(usb_device_descriptor) == 18);
+    constexpr uint8_t USB_DESCRIPTOR_DEVICE = 0x01;
 
     class xhci_driver {
     public:
@@ -95,6 +72,7 @@ namespace USB {
 
         void _parse_capability_registers();
         void _parse_extended_capability_registers();
+        void _parse_config_descriptor(xhci_device* device, const uint8_t* buf, uint16_t total_length);
 
         void _log_capability_registers();
         void _log_operational_registers();
@@ -141,10 +119,13 @@ namespace USB {
         void _address_device(xhci_device* device, bool bsr);
 
         int32_t _get_device_descriptor(xhci_device* device, void* out, uint16_t length);
+        int32_t _get_config_descriptor(xhci_device* device, uint8_t config_index = 0);
 
         int32_t _send_control_transfer(xhci_device* device,xhci_device_request_packet& request,void* buffer, uint32_t length);
 
         uint32_t _read_mfindex() const;
+
+        void _evaluate_context(const xhci_device* device);
     };
 
     extern xhci_driver m_xhci_driver;

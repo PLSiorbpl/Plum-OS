@@ -1,6 +1,7 @@
 #include "fat32.hpp"
 #include "Drivers/fs/partition/gpt_partition.h"
 #include "Drivers/fs/partition/partition_manager.h"
+#include "kernel/log.h"
 
 namespace fs::FAT32 {
     fat32_manager::~fat32_manager() {
@@ -13,55 +14,82 @@ namespace fs::FAT32 {
     }
 
     void fat32_manager::init(drivers::ahci::ahci_device &dev) {
+        if (!dev.is_active()) {
+            log::error("[ FAT32 ] Device is inactive");
+            return;
+        }
         fat_partitions.clear();
         device = &dev;
         part_manager.init(*device);
 
         for (int i = 0; i < part_manager.get_partition_count(); i++) {
-            auto fat = static_cast<fat_info *>(heap::malloc_align(sizeof(fat_info), 4));
-            if (!part_manager.get_partition(i, fat->gpt_partition))
-                continue;
+            auto fat = static_cast<fat_info *>(heap::malloc_align(sizeof(fat_info), 0x1000));
 
-            if (!device->read_bytes(fat->gpt_partition.starting_lba, sizeof(BPB), reinterpret_cast<u16 *>(&fat->bpb)))
-                return;
+            // Get parition candidate
+            if (!part_manager.get_partition(i, fat->gpt_partition)) {
+                heap::free_align(fat);
+                log::warn("[ FAT32 ] Failed to get partition: #%u", i);
+                continue;
+            }
+
+            // Read its BPB
+            if (!device->read_bytes(fat->gpt_partition.starting_lba, sizeof(BPB), reinterpret_cast<u16 *>(&fat->bpb))) {
+                heap::free_align(fat);
+                log::warn("[ FAT32 ] Failed to read BPB: lba=%l size=%u", (uint64_t)fat->gpt_partition.starting_lba, sizeof(BPB));
+                continue;
+            }
 
             uint32_t data_start = fat->gpt_partition.starting_lba + fat->bpb.rsvd_sector_count + fat->bpb.num_of_FATs * fat->bpb.ebpb.sectors_per_FAT;
             fat->data_start = data_start;
 
-            if (fat->bpb.root_entry_count == 0 && fat->bpb.FAT_size == 0) {
+            // Validate FAT32
+            if (validate_fat32(fat->bpb)) {
                 std::kernel::printf("\n&aFAT32 &eid:&f%u ", fat_partitions.size());
                 fat_partitions.push_back(*fat);
+
+                char oem_name[9];
+                for (int s = 0; s < 8; s++) {
+                    oem_name[s] = fat->bpb.OEM_Name[s];
+                }
+                oem_name[8] = '\0';
+
+                char volume_string[12];
+                for (int s = 0; s < 11; s++) {
+                    volume_string[s] = fat->bpb.ebpb.volume_label_string[s];
+                }
+                volume_string[11] = '\0';
+
+                std::kernel::printf("&7partition &f%i: &7volume = &f%s &7oem = &f%s\n", i, volume_string, oem_name);
+
+                read(0, fat_partitions.size()-1, 0, 0);
             }
 
-            char oem_name[9];
-            for (int s = 0; s < 8; s++) {
-                oem_name[s] = fat->bpb.OEM_Name[s];
-            }
-            oem_name[8] = '\0';
-
-            char volume_string[12];
-            for (int s = 0; s < 11; s++) {
-                volume_string[s] = fat->bpb.ebpb.volume_label_string[s];
-            }
-            volume_string[11] = '\0';
-
-            std::kernel::printf("&7partition &f%i: &7volume = &f%s &7oem = &f%s\n", i, volume_string, oem_name);
+            heap::free_align(fat);
         }
     }
 
     void fat32_manager::read(uint32_t first_cluster, uint8_t partition, int8_t depth, int8_t origin_d) {
+        if (depth < 0) return;
+        if (partition >= fat_partitions.size()) {
+            log::error("No partition: %u", partition);
+            return;
+        }
+
         auto fat = fat_partitions[partition];
         if (first_cluster == 0)
             first_cluster = fat.bpb.ebpb.root_directory_cluster;
 
         const uint32_t cluster_size = fat.bpb.bytes_per_sector * fat.bpb.sectors_per_cluster;
-        std::kernel::printf("cluster size: %u\n", cluster_size);
 
-        const uint32_t lba = fat.data_start + (first_cluster - 2) * fat.bpb.sectors_per_cluster;
+        const uint64_t lba = fat.data_start + (first_cluster - 2) * fat.bpb.sectors_per_cluster;
 
-        auto *buffer = static_cast<file_entry *>(heap::malloc(cluster_size));
+        auto *buffer = static_cast<file_entry *>(heap::malloc_align(cluster_size, 0x1000));
 
-        device->read_bytes(lba, cluster_size, reinterpret_cast<uint16_t *>(buffer));
+        if (!device->read_bytes(lba, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
+            heap::free_align(buffer);
+            log::error("[ FAT32 ] Failed to read cluster: lba=%l cluster_size=%u", lba, cluster_size);
+            return;
+        }
 
         char long_name[255] = {};
         const auto *entry = buffer;
@@ -80,7 +108,7 @@ namespace fs::FAT32 {
                 continue;
 
             if (entry[i].attributes == 0x08) {
-                std::kernel::printf("VOLUME: %s\n", short_name);
+                std::kernel::printf("&eVOLUME: %s\n", short_name);
                 continue;
             }
 
@@ -149,7 +177,7 @@ namespace fs::FAT32 {
                 std::kernel::printf("%s ", short_name);
             }
 
-            std::kernel::printf("&7attr: &f%x &7size: &f%u\n", entry[i].attributes, entry[i].file_size);
+            std::kernel::printf("&7attr: &f%x &7size: &f%u\n", entry[i].attributes);
 
             // Recursive search
             if (entry[i].attributes & 0x10 && short_name[0] != '.') {
@@ -159,6 +187,32 @@ namespace fs::FAT32 {
             }
         }
 
-        heap::free(buffer);
+        heap::free_align(buffer);
+    }
+
+    bool fat32_manager::validate_fat32(const BPB& bpb) {
+        if (bpb.ebpb.boot_partition_signature != 0xAA55)
+            return false;
+
+        // bytes_per_sector must be a power of 2 between 512-4096
+        if (bpb.bytes_per_sector != 512  && bpb.bytes_per_sector != 1024 &&
+            bpb.bytes_per_sector != 2048 && bpb.bytes_per_sector != 4096)
+            return false;
+
+        // sectors_per_cluster must be non-zero power of 2
+        if (bpb.sectors_per_cluster == 0)
+            return false;
+        if (bpb.sectors_per_cluster & (bpb.sectors_per_cluster - 1))
+            return false;
+
+        // FAT32 specific: root_entry_count must be 0, FAT_size must be 0
+        if (bpb.root_entry_count != 0 || bpb.FAT_size != 0)
+            return false;
+
+        // Reserved sector count must be non-zero (holds the BPB itself)
+        if (bpb.rsvd_sector_count == 0)
+            return false;
+
+        return true;
     }
 }

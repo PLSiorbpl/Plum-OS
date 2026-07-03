@@ -1,6 +1,13 @@
 #pragma once
 #include "types.hpp"
 
+namespace std {
+    template <typename T>
+    constexpr T&& move(T& t) noexcept {
+        return static_cast<T&&>(t);
+    }
+}
+
 namespace mem {
     extern "C" void* memcpy(void* dst, const void* src, uint64_t size);
     extern "C" volatile void* memmove(volatile void* dst, volatile const void* src, uint64_t size);

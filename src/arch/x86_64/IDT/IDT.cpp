@@ -38,6 +38,11 @@ namespace IDT {
         x64::outb(0x20, 0x20);
         x64::outb(0xA0, 0x20);
         PIC_enabled = false;
+
+        // disable imcr (completly save to write to according to claude)
+        x64::outb(0x22, 0x70); // select IMCR
+        x64::outb(0x23, 0x01);
+
         x64::set_INT_flag(true);
     }
 
