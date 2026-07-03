@@ -90,8 +90,8 @@ set_target_properties(Kernel PROPERTIES
 # All Images
 set(FAT_IMG ${CMAKE_SOURCE_DIR}/Images/fat.img)
 set(FAT32_IMG ${CMAKE_SOURCE_DIR}/Images/fat32.img)
-set(DISK_IMG ${CMAKE_SOURCE_DIR}/Images/disk.img)
 set(USB_IMG ${CMAKE_SOURCE_DIR}/Images/usb.img)
+set(LIMINE ${CMAKE_SOURCE_DIR}/vendor/limine)
 
 set(OVMF ${CMAKE_SOURCE_DIR}/src_boot/ovmf_code_4M.fd)
 
@@ -103,13 +103,17 @@ add_custom_target(build
         COMMAND dd if=/dev/zero of=${FAT_IMG} bs=1M count=64
         COMMAND mformat -i ${FAT_IMG}
         -h 32 -t 32 -n 64   # heads, tracks, sectors
-        -F                  # force FAT32
-        ::
+        -F ::
+
         COMMAND mmd    -i ${FAT_IMG} ::/EFI
         COMMAND mmd    -i ${FAT_IMG} ::/EFI/BOOT
         COMMAND mmd    -i ${FAT_IMG} ::/boot
         COMMAND mmd    -i ${FAT_IMG} ::/boot/limine
-        COMMAND mcopy  -i ${FAT_IMG} ${CMAKE_SOURCE_DIR}/BOOTX64.EFI ::/EFI/BOOT/BOOTX64.EFI
+
+        COMMAND mcopy  -i ${FAT_IMG} ${LIMINE}/BOOTX64.EFI ::/EFI/BOOT/BOOTX64.EFI # UEFI
+        COMMAND mcopy  -i ${FAT_IMG} ${LIMINE}/limine-uefi-cd.bin  ::/boot/limine/limine-uefi-cd.bin # UEFI
+        COMMAND mcopy  -i ${FAT_IMG} ${LIMINE}/limine-bios-cd.bin  ::/boot/limine/limine-bios-cd.bin # BIOS
+        COMMAND mcopy  -i ${FAT_IMG} ${LIMINE}/limine-bios.sys  ::/boot/limine/limine-bios.sys # BIOS
         COMMAND mcopy  -i ${FAT_IMG} ${CMAKE_CURRENT_BINARY_DIR}/Kernel.elf  ::/Kernel.elf
         COMMAND mcopy  -i ${FAT_IMG} ${CMAKE_SOURCE_DIR}/limine.conf  ::/boot/limine/limine.conf
         DEPENDS Kernel
@@ -163,3 +167,38 @@ add_custom_target(run
         DEPENDS Kernel build
         VERBATIM
 )
+
+# ---------------------------------------------------------
+
+# =========================================================
+# Building ISO Image
+
+set(ISO_IMG "${CMAKE_SOURCE_DIR}/Images/PLumOS.iso")
+set(ISO_DIR "${CMAKE_SOURCE_DIR}/Images/iso_dir")
+
+add_custom_target(iso
+        COMMENT "Building ISO image"
+
+        COMMAND rm -rf ${ISO_DIR}
+        COMMAND mkdir -p ${ISO_DIR}/boot/limine ${ISO_DIR}/EFI/BOOT
+        COMMAND cp ${LIMINE}/BOOTX64.EFI                    ${ISO_DIR}/EFI/BOOT/BOOTX64.EFI # UEFI
+        COMMAND cp ${LIMINE}/limine-uefi-cd.bin             ${ISO_DIR}/boot/limine/limine-uefi-cd.bin # UEFI
+        COMMAND cp ${LIMINE}/limine-bios-cd.bin             ${ISO_DIR}/boot/limine/limine-bios-cd.bin # BIOS
+        COMMAND cp ${LIMINE}/limine-bios.sys                ${ISO_DIR}/boot/limine/limine-bios.sys # BIOS
+        COMMAND cp ${CMAKE_CURRENT_BINARY_DIR}/Kernel.elf   ${ISO_DIR}/Kernel.elf
+        COMMAND cp ${CMAKE_SOURCE_DIR}/limine.conf          ${ISO_DIR}/boot/limine/limine.conf
+
+        COMMAND xorriso -as mkisofs
+		-b boot/limine/limine-bios-cd.bin
+		-no-emul-boot -boot-load-size 4 -boot-info-table
+		--efi-boot boot/limine/limine-uefi-cd.bin
+		-efi-boot-part --efi-boot-image
+		--protective-msdos-label
+		${ISO_DIR} -o ${ISO_IMG}
+        COMMAND ${LIMINE}/limine bios-install ${ISO_IMG}
+
+        DEPENDS Kernel
+        VERBATIM
+)
+
+# ---------------------------------------------------------

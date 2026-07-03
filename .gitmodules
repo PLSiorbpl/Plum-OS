@@ -1,3 +1,6 @@
 [submodule "vendor/uacpi"]
 	path = vendor/uacpi
 	url = https://github.com/uACPI/uACPI.git
+[submodule "vendor/limine"]
+	path = vendor/limine
+	url = https://github.com/limine-bootloader/limine.git
