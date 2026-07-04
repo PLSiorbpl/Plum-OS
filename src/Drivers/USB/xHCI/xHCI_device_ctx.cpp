@@ -2,7 +2,7 @@
 #include "xHCI_common.hpp"
 
 namespace USB {
-    const char* xhci_slot_state_to_string(uint8_t slot_state) {
+    const char* xhci_slot_state_to_string(const uint8_t slot_state) {
         switch (slot_state) {
             case XHCI_SLOT_STATE_DISABLED_ENABLED: return "Disabled/Enabled";
             case XHCI_SLOT_STATE_DEFAULT: return "Default";
@@ -14,7 +14,7 @@ namespace USB {
         }
     }
 
-    const char* xhci_ep_state_to_string(uint8_t ep_state) {
+    const char* xhci_ep_state_to_string(const uint8_t ep_state) {
         switch (ep_state) {
             case XHCI_ENDPOINT_STATE_DISABLED: return "Disabled";
             case XHCI_ENDPOINT_STATE_RUNNING: return "Running";

@@ -16,24 +16,20 @@ namespace USB {
     void *alloc_xhci_memory(const uint64_t size, const uint64_t alignment, const uint64_t boundary) {
         if (size == 0) {
             log::error("Attempted DMA allocation with size 0!\n");
-            while (true);
         }
 
         if (alignment == 0) {
             log::error("Attempted DMA allocation with alignment 0!\n");
-            while (true);
         }
 
         if (boundary == 0) {
             log::error("Attempted DMA allocation with boundary 0!\n");
-            while (true);
         }
 
         void* memblock = heap::malloc_boundry(size, alignment, boundary);
 
         if (!memblock) {
             log::error("======= MEMORY ALLOCATION FAILED =======\n");
-            while (true);
         }
 
         mem::memset(memblock, 0, size);
@@ -45,7 +41,7 @@ namespace USB {
         // never frfr
     }
 
-    uintptr_t xhci_get_physical_addr(void *vaddr) {
+    uintptr_t xhci_get_physical_addr(const void *vaddr) {
         const auto paddr = to_physical(vaddr);
         return paddr;
     }

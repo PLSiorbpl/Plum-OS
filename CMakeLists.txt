@@ -144,7 +144,9 @@ set(QEMU_FLAGS
         #-drive file=${FAT32_IMG},format=raw,if=none,id=NVME1
         # ----- USB -----
         -device qemu-xhci,id=xhci
-        -device usb-mouse
+        -device usb-tablet
+		#-device usb-mouse
+		#-device usb-kbd
         -device virtio-keyboard-pci
         # ----- NET -----
         -netdev tap,id=n0,ifname=tap0,script=no,downscript=no

@@ -72,6 +72,12 @@ namespace std {
             m_size = 0;
         }
 
+        void erase(size_t index) {
+            for (size_t i = index; i < m_size - 1; i++)
+                m_data[i] = m_data[i + 1];
+            m_size--;
+        }
+
         void shrink_to_fit() {
             if (m_size == m_capacity)
                 return;

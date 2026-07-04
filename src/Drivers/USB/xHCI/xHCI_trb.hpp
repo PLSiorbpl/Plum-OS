@@ -41,11 +41,13 @@ namespace USB {
 
         uint32_t reserved2;
 
-        uint32_t cycle : 1;
-        uint32_t reserved3 : 9;
-        uint32_t trb_type : 6;
-        uint32_t port_id : 8;
-        uint32_t reserved4 : 8;
+        struct {
+            uint32_t cycle : 1;
+            uint32_t reserved3 : 9;
+            uint32_t trb_type : 6;
+            uint32_t port_id : 8;
+            uint32_t reserved4 : 8;
+        };
     } __attribute__((packed));
 
     typedef struct xhci_address_device_request_block {

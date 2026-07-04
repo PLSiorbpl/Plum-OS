@@ -55,5 +55,5 @@ namespace USB {
 
     void free_xhci_memory(void* ptr);
 
-    uintptr_t xhci_get_physical_addr(void* vaddr);
+    uintptr_t xhci_get_physical_addr(const void* vaddr);
 }

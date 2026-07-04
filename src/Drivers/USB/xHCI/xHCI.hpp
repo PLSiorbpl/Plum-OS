@@ -1,5 +1,4 @@
 #pragma once
-#include <std/types.hpp>
 
 #include "xHCI_device.hpp"
 #include "xHCI_regs.hpp"
@@ -59,8 +58,14 @@ namespace USB {
         xhci_doorbell_manager *m_doorbell_manager = nullptr;
 
         std::vector<xhci_command_completion_trb_t*> m_command_completion_events;
-
         volatile uint8_t m_command_irq_completion = 0;
+        struct xhci_pending_transfer {
+            uint8_t  slot_id;
+            uint8_t  endpoint_id; // DCI
+            uint8_t  completion_code;
+            uint32_t residual;    // bytes NOT transferred
+        };
+        std::vector<xhci_pending_transfer> m_pending_transfers;
 
         std::vector<uint8_t> m_usb3_ports;
 
@@ -72,12 +77,7 @@ namespace USB {
 
         void _parse_capability_registers();
         void _parse_extended_capability_registers();
-        void _parse_config_descriptor(xhci_device* device, const uint8_t* buf, uint16_t total_length);
-
-        void _log_capability_registers();
-        void _log_operational_registers();
-
-        void _log_usbsts();
+        xhci_usb_config _parse_config_descriptor(const uint8_t* buf, uint16_t total_length);
 
         // port number is 0-based
         static xhci_portsc_register _read_portsc_reg(uint8_t port_num);
@@ -85,24 +85,24 @@ namespace USB {
         // port number is 0-based
         void _write_portsc_reg(xhci_portsc_register reg, uint8_t port_num);
 
-        bool _is_usb3_port(uint8_t port_id);
+        bool _is_usb3_port(uint8_t port_id) const;
 
-        bool _reset_host_controller();
-        bool _start_host_controller();
+        bool _reset_host_controller() const;
+        bool _start_host_controller() const;
 
         void _configure_operational_register();
         void _setup_dcbaa();
 
         void _configure_runtime_registers();
-        void _acknowledge_irq(uint8_t interrupter);
+        void _acknowledge_irq(uint8_t interrupter) const;
 
         xhci_command_completion_trb_t *_send_command_trb(xhci_trb_t* cmd_trb, uint32_t timeout = 200);
 
         // port number is 0-based
         bool _reset_port(uint8_t port_num);
 
-        const char* _usb_speed_to_string(uint8_t speed);
-        uint8_t _get_port_speed(uint8_t port);
+        static const char* _usb_speed_to_string(uint8_t speed);
+        static uint8_t _get_port_speed(uint8_t port);
 
         uint8_t _enable_device_slot();
 
@@ -113,19 +113,26 @@ namespace USB {
         void _setup_device(uint8_t port);
         void _enumerate_device(xhci_device *device);
 
-        uint16_t _initial_max_packet_size(uint8_t speed);
-        void _configure_ctrl_ep_input_context(xhci_device* device, uint16_t max_packet_size);
+        static uint16_t _initial_max_packet_size(uint8_t speed);
+        void _configure_ctrl_ep_input_context(xhci_device* device, uint16_t max_packet_size) const;
 
-        void _address_device(xhci_device* device, bool bsr);
+        void _address_device(const xhci_device* device, bool bsr);
 
         int32_t _get_device_descriptor(xhci_device* device, void* out, uint16_t length);
         int32_t _get_config_descriptor(xhci_device* device, uint8_t config_index = 0);
 
-        int32_t _send_control_transfer(xhci_device* device,xhci_device_request_packet& request,void* buffer, uint32_t length);
+        int32_t _send_control_transfer(xhci_device* device,xhci_device_request_packet& request,void* buffer, uint32_t length) const;
 
         uint32_t _read_mfindex() const;
 
         void _evaluate_context(const xhci_device* device);
+
+        int32_t _set_configuration(xhci_device* device, uint8_t config_value) const;
+        int32_t _configure_endpoint(xhci_device* device,const xhci_usb_endpoint& ep);
+        int32_t _hid_set_idle(xhci_device* device, uint8_t interface_num) const;
+        int32_t _hid_set_protocol(xhci_device* device, uint8_t interface_num, uint8_t protocol) const;
+        int32_t _schedule_interrupt_in(xhci_device* device, const xhci_usb_endpoint& ep);
+        bool _wait_for_transfer(uint8_t slot, uint8_t dci, xhci_pending_transfer* out, uint32_t timeout_ms = 200);
     };
 
     extern xhci_driver m_xhci_driver;

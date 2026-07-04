@@ -117,10 +117,9 @@ namespace USB {
         [[nodiscard]] xhci_extended_capability *next() const { return m_next; }
 
     private:
-        volatile uint32_t* m_base;
-        xhci_extended_capability_entry m_entry;
-
-        xhci_extended_capability *m_next;
+        volatile uint32_t* m_base = nullptr;
+        xhci_extended_capability_entry m_entry = {};
+        xhci_extended_capability *m_next = {};
 
     private:
         void _read_next_ext_caps();

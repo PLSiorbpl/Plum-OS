@@ -37,7 +37,7 @@ namespace USB {
         [[nodiscard]] uintptr_t get_physical_base() const { return m_physical_base; }
         [[nodiscard]] uint8_t  get_cycle_bit() const { return m_rcs_bit; }
 
-        bool has_unprocessed_events();
+        bool has_unprocessed_events() const;
         void dequeue_events(std::vector<xhci_trb_t*>& trbs);
 
         void flush_unprocessed_events();
@@ -56,7 +56,7 @@ namespace USB {
         uint8_t m_rcs_bit;
 
     private:
-        void _update_erdp();
+        void _update_erdp() const;
         xhci_trb_t* _dequeue_trb();
     };
 

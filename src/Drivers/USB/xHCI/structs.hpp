@@ -14,6 +14,8 @@ namespace USB {
 #define USB_EP_TYPE(attr)             ((attr) & 0x03)
 #define USB_EP_TYPE_INTERRUPT         0x03
 
+#define XHCI_TRB_TYPE_NORMAL 1
+
     struct usb_descriptor_header {
         uint8_t bLength;
         uint8_t bDescriptorType;
@@ -87,5 +89,48 @@ namespace USB {
         uint8_t  bNumDescriptors;
         uint8_t  bClassDescriptorType;
         uint16_t wClassDescriptorLength;
+    } __attribute__((packed));
+
+    struct xhci_configure_endpoint_command_trb_t {
+        uint64_t input_context_physical_base;
+        uint32_t rsvd;
+        uint32_t cycle_bit : 1;
+        uint32_t rsvd1     : 8;
+        uint32_t dc        : 1;
+        uint32_t trb_type  : 6;
+        uint32_t rsvd2     : 8;
+        uint32_t slot_id   : 8;
+    } __attribute__((packed));
+
+    struct xhci_transfer_event_trb_t {
+        uint64_t trb_pointer;
+        uint32_t trb_transfer_length : 24; // residual bytes NOT transferred
+        uint32_t completion_code     : 8;
+        uint32_t cycle_bit           : 1;  // bit 0
+        uint32_t rsvd                : 1;  // bit 1
+        uint32_t event_data          : 1;  // bit 2
+        uint32_t rsvd1               : 7;  // bits 9:3
+        uint32_t trb_type            : 6;  // bits 15:10
+        uint32_t endpoint_id         : 5;  // bits 20:16  ← adjacent to trb_type, NO gap
+        uint32_t rsvd2               : 3;  // bits 23:21
+        uint32_t slot_id             : 8;  // bits 31:24
+    } __attribute__((packed));
+
+    struct xhci_normal_trb_t {
+        uint64_t data_buffer;
+        uint32_t trb_transfer_length : 17;
+        uint32_t td_size             : 5;
+        uint32_t interrupter_target  : 10;
+        uint32_t cycle_bit           : 1;
+        uint32_t evaluate_next       : 1;
+        uint32_t isp                 : 1;  // interrupt on short packet
+        uint32_t no_snoop            : 1;
+        uint32_t chain               : 1;
+        uint32_t ioc                 : 1;  // interrupt on completion
+        uint32_t idt                 : 1;
+        uint32_t rsvd                : 2;
+        uint32_t bei                 : 1;
+        uint32_t trb_type            : 6;
+        uint32_t rsvd1               : 16;
     } __attribute__((packed));
 }

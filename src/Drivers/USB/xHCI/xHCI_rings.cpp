@@ -13,8 +13,7 @@ namespace USB {
         m_enqueue_ptr = 0;
 
         const uint64_t ring_size = max_trbs * sizeof(xhci_trb_t);
-        m_trbs = static_cast<xhci_trb_t *>(alloc_xhci_memory(ring_size, XHCI_COMMAND_RING_SEGMENTS_ALIGNMENT,
-                                                             XHCI_COMMAND_RING_SEGMENTS_BOUNDARY));
+        m_trbs = static_cast<xhci_trb_t *>(alloc_xhci_memory(ring_size, XHCI_COMMAND_RING_SEGMENTS_ALIGNMENT, XHCI_COMMAND_RING_SEGMENTS_BOUNDARY));
 
         m_physical_base = xhci_get_physical_addr(m_trbs);
 
@@ -33,7 +32,7 @@ namespace USB {
         }
     }
 
-    xhci_event_ring::xhci_event_ring(size_t max_trbs, volatile xhci_interrupter_registers *interrupter) {
+    xhci_event_ring::xhci_event_ring(const size_t max_trbs, volatile xhci_interrupter_registers *interrupter) {
         m_interrupter_regs = interrupter;
         m_segment_trb_count = max_trbs;
         m_rcs_bit = XHCI_CRCR_RING_CYCLE_STATE;
@@ -41,7 +40,7 @@ namespace USB {
 
         constexpr uint64_t segment_count = 1;
         const uint64_t segment_size = max_trbs * sizeof(xhci_trb_t);
-        const uint64_t segment_table_size = segment_count * sizeof(xhci_erst_entry);
+        constexpr uint64_t segment_table_size = segment_count * sizeof(xhci_erst_entry);
 
         m_trbs = static_cast<xhci_trb_t *>(alloc_xhci_memory(segment_size,
             XHCI_EVENT_RING_SEGMENTS_ALIGNMENT,
@@ -55,7 +54,7 @@ namespace USB {
             XHCI_EVENT_RING_SEGMENT_TABLE_BOUNDARY)
             );
 
-        xhci_erst_entry entry;
+        xhci_erst_entry entry{};
         entry.ring_segment_base_address = m_physical_base;
         entry.ring_segment_size = m_segment_trb_count;
         entry.rsvd = 0;
@@ -67,7 +66,7 @@ namespace USB {
         m_interrupter_regs->erstba = xhci_get_physical_addr(m_segment_table);
     }
 
-    bool xhci_event_ring::has_unprocessed_events() {
+    bool xhci_event_ring::has_unprocessed_events() const {
         return (m_trbs[m_dequeue_ptr].cycle_bit == m_rcs_bit);
     }
 
@@ -94,8 +93,8 @@ namespace USB {
         events.clear();
     }
 
-    void xhci_event_ring::_update_erdp() {
-        uint64_t dequeue_address = m_physical_base + (m_dequeue_ptr * sizeof(xhci_trb_t));
+    void xhci_event_ring::_update_erdp() const {
+        const uint64_t dequeue_address = m_physical_base + (m_dequeue_ptr * sizeof(xhci_trb_t));
         m_interrupter_regs->erdp = dequeue_address;
     }
 

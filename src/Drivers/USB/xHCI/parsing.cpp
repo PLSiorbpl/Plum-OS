@@ -2,20 +2,21 @@
 #include "std/types.hpp"
 #include "kernel/log.h"
 #include "structs.hpp"
+#include "std/mem_common.hpp"
 
 namespace USB {
-    void xhci_driver::_parse_config_descriptor(xhci_device* device, const uint8_t* buf, uint16_t total_length) {
+    xhci_usb_config xhci_driver::_parse_config_descriptor(const uint8_t* buf, uint16_t total_length) {
+        xhci_usb_config result = {};
         const uint8_t* ptr = buf;
         const uint8_t* end = buf + total_length;
 
         auto* cfg = reinterpret_cast<const usb_configuration_descriptor*>(ptr);
-        log::info("[ xHCI ] config descriptor:");
-        log::info("\tbNumInterfaces      = %u", cfg->bNumInterfaces);
-        log::info("\tbConfigurationValue = %u", cfg->bConfigurationValue);
-        log::info("\tbmAttributes        = %x", cfg->bmAttributes);
-        log::info("\tbMaxPower           = %umA", cfg->bMaxPower * 2);
+        result.config_value  = cfg->bConfigurationValue;
+        result.attributes    = cfg->bmAttributes;
+        result.max_power_ma  = cfg->bMaxPower * 2;
 
         ptr += cfg->bLength;
+        xhci_usb_interface* current_iface = nullptr;
 
         while (ptr + 2 <= end) {
             uint8_t desc_len  = ptr[0];
@@ -33,54 +34,57 @@ namespace USB {
             switch (desc_type) {
                 case USB_DESCRIPTOR_INTERFACE: {
                     auto* iface = reinterpret_cast<const usb_interface_descriptor*>(ptr);
-                    log::info("Interface %u:", iface->bInterfaceNumber);
-                    log::info("\tbInterfaceClass    = %x", iface->bInterfaceClass);
-                    log::info("\tbInterfaceSubClass = %x", iface->bInterfaceSubClass);
-                    log::info("\tbInterfaceProtocol = %x", iface->bInterfaceProtocol);
-                    log::info("\tbNumEndpoints      = %u",   iface->bNumEndpoints);
 
-                    if (iface->bInterfaceClass == USB_CLASS_HID) {
-                        // HID protocol values: 1=Keyboard, 2=Mouse
-                        const char* hid_type = (iface->bInterfaceProtocol == 1) ? "Keyboard"
-                                             : (iface->bInterfaceProtocol == 2) ? "Mouse"
-                                             : "HID";
-                        log::success("\t-> %s (HID boot protocol)", hid_type);
-                    }
+                    xhci_usb_interface new_iface = {};
+                    new_iface.number            = iface->bInterfaceNumber;
+                    new_iface.alternate_setting = iface->bAlternateSetting;
+                    new_iface.class_code        = iface->bInterfaceClass;
+                    new_iface.subclass_code     = iface->bInterfaceSubClass;
+                    new_iface.protocol          = iface->bInterfaceProtocol;
+
+                    result.interfaces.push_back(std::move(new_iface));
+
+                    current_iface = &result.interfaces[result.interfaces.size() - 1];
                     break;
                 }
 
                 case USB_DESCRIPTOR_ENDPOINT: {
                     auto* ep = reinterpret_cast<const usb_endpoint_descriptor*>(ptr);
-                    bool     is_in   = USB_EP_DIR_IN(ep->bEndpointAddress);
-                    uint8_t  ep_num  = USB_EP_NUM(ep->bEndpointAddress);
-                    uint8_t  ep_type = USB_EP_TYPE(ep->bmAttributes);
 
-                    static const char* ep_type_str[] = { "Control", "Isochronous", "Bulk", "Interrupt" };
+                    if (!current_iface) {
+                        log::error("[ xHCI ] endpoint descriptor before any interface, skipping");
+                        break;
+                    }
 
-                    log::info("Endpoint %x:", ep->bEndpointAddress);
-                    log::info("\tDirection      = %s", is_in ? "IN" : "OUT");
-                    log::info("\tNumber         = %u", ep_num);
-                    log::info("\tType           = %s", ep_type_str[ep_type & 3]);
-                    log::info("\twMaxPacketSize = %u", ep->wMaxPacketSize);
-                    log::info("\tbInterval      = %u", ep->bInterval);
+                    xhci_usb_endpoint new_ep = {};
+                    new_ep.address         = ep->bEndpointAddress;
+                    new_ep.number          = USB_EP_NUM(ep->bEndpointAddress);
+                    new_ep.is_in           = USB_EP_DIR_IN(ep->bEndpointAddress);
+                    new_ep.type            = USB_EP_TYPE(ep->bmAttributes);
+                    new_ep.max_packet_size = ep->wMaxPacketSize & 0x7FF;
+                    new_ep.interval        = ep->bInterval;
+                    new_ep.dci             = (new_ep.number * 2) + (new_ep.is_in ? 1 : 0);
+
+                    current_iface->endpoints.push_back(new_ep);
+
+                    static const char* ep_type_str[] = {"Control", "Isochronous", "Bulk", "Interrupt"};
                     break;
                 }
 
                 case USB_DESCRIPTOR_HID: {
                     auto* hid = reinterpret_cast<const usb_hid_descriptor*>(ptr);
-                    log::info("HID descriptor:");
-                    log::info("\tbcdHID              = %x", hid->bcdHID);
-                    log::info("\tbNumDescriptors     = %u",   hid->bNumDescriptors);
-                    log::info("\twClassDescriptorLen = %u",   hid->wClassDescriptorLength);
+                    current_iface->hid_descriptor = static_cast<usb_hid_descriptor>(*hid);
                     break;
                 }
 
                 default:
-                    log::warn("(unknown descriptor type %x, len=%u)", desc_type, desc_len);
+                    log::warn("[ xHCI ] (unknown descriptor type %x len=%u)", desc_type, desc_len);
                     break;
             }
 
             ptr += desc_len;
         }
+
+        return result;
     }
 }
