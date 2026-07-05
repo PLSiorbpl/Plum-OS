@@ -74,12 +74,57 @@ isr_common_stub:
     pushall
 
     mov rdi, rsp ; first argument
-    ; stack alligment
-    mov rbp, rsp
+    mov rbp, rsp ; stack alligment
     and rsp, -16
+
+    ; Save XMM registers (16 regs × 16 bytes = 256 bytes)
+    sub rsp, 256
+    movdqu [rsp + 0x00], xmm0
+    movdqu [rsp + 0x10], xmm1
+    movdqu [rsp + 0x20], xmm2
+    movdqu [rsp + 0x30], xmm3
+    movdqu [rsp + 0x40], xmm4
+    movdqu [rsp + 0x50], xmm5
+    movdqu [rsp + 0x60], xmm6
+    movdqu [rsp + 0x70], xmm7
+    movdqu [rsp + 0x80], xmm8
+    movdqu [rsp + 0x90], xmm9
+    movdqu [rsp + 0xA0], xmm10
+    movdqu [rsp + 0xB0], xmm11
+    movdqu [rsp + 0xC0], xmm12
+    movdqu [rsp + 0xD0], xmm13
+    movdqu [rsp + 0xE0], xmm14
+    movdqu [rsp + 0xF0], xmm15
+
+    ; Save MXCSR (SSE control/status register)
+    sub rsp, 16        ; aligned space for stmxcsr
+    stmxcsr [rsp]
 
     extern isr_common
     call isr_common
+
+    ; Restore MXCSR
+    ldmxcsr [rsp]
+    add rsp, 16
+
+    ; Restore XMM registers
+    movdqu xmm0,  [rsp + 0x00]
+    movdqu xmm1,  [rsp + 0x10]
+    movdqu xmm2,  [rsp + 0x20]
+    movdqu xmm3,  [rsp + 0x30]
+    movdqu xmm4,  [rsp + 0x40]
+    movdqu xmm5,  [rsp + 0x50]
+    movdqu xmm6,  [rsp + 0x60]
+    movdqu xmm7,  [rsp + 0x70]
+    movdqu xmm8,  [rsp + 0x80]
+    movdqu xmm9,  [rsp + 0x90]
+    movdqu xmm10, [rsp + 0xA0]
+    movdqu xmm11, [rsp + 0xB0]
+    movdqu xmm12, [rsp + 0xC0]
+    movdqu xmm13, [rsp + 0xD0]
+    movdqu xmm14, [rsp + 0xE0]
+    movdqu xmm15, [rsp + 0xF0]
+    add rsp, 256
 
     mov rsp, rbp ; original stack
     popall

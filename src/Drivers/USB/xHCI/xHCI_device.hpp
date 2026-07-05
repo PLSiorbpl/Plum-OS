@@ -5,6 +5,20 @@
 #include "xHCI_device_config.hpp"
 
 namespace USB {
+    enum class xhci_hid_type : uint8_t {
+        Unknown = 0,
+        Keyboard = 1,
+        Mouse = 2,
+    };
+
+    struct xhci_hid_endpoint {
+        uint8_t   dci;
+        uint8_t   slot;
+        void*     buf_virt;
+        uintptr_t buf_phys;
+        uint8_t   max_packet_size;
+        xhci_hid_type type;
+    };
 
     class xhci_device {
     public:
@@ -43,13 +57,23 @@ namespace USB {
             m_ep_rings[dci] = ring;
         }
 
-        xhci_input_control_context32* get_input_ctrl_ctx() const;
-        xhci_slot_context32* get_input_slot_ctx() const;
-        xhci_endpoint_context32* get_input_ctrl_ep_ctx() const;
-        xhci_endpoint_context32* get_input_ep_ctx(uint8_t endpoint_num) const;
-        xhci_endpoint_context32* get_ep_ctx_by_dci(uint8_t dci) const;
+        [[nodiscard]] xhci_input_control_context32* get_input_ctrl_ctx() const;
+        [[nodiscard]] xhci_slot_context32* get_input_slot_ctx() const;
+        [[nodiscard]] xhci_endpoint_context32* get_input_ctrl_ep_ctx() const;
+        [[nodiscard]] xhci_endpoint_context32* get_input_ep_ctx(uint8_t endpoint_num) const;
+        [[nodiscard]] xhci_endpoint_context32* get_ep_ctx_by_dci(uint8_t dci) const;
 
-        // Copies data from the output device context into the input context
+        void set_hid_ep(const xhci_hid_endpoint& ep) { m_hid_eps[ep.dci] = ep; }
+
+        [[nodiscard]] const xhci_hid_endpoint* get_hid_ep(uint8_t dci) const {
+            if (dci > 31) return nullptr;
+            return m_hid_eps[dci].dci != 0 ? &m_hid_eps[dci] : nullptr;
+        }
+
+        [[nodiscard]] bool has_hid_ep(uint8_t dci) const {
+            return dci <= 31 && m_hid_eps[dci].dci != 0;
+        }
+
         void sync_input_ctx(const void* out_ctx) const;
 
     private:
@@ -57,6 +81,8 @@ namespace USB {
         const uint8_t m_slot = 0;           // slot index in the xhci DCBAA
         const uint8_t m_speed = 0;          // port speed
         const bool    m_use64byte_ctx = false;
+
+        xhci_hid_endpoint m_hid_eps[32] = {};
 
         uint32_t  m_route_string = 0;
         uint8_t   m_root_port_id = 0;

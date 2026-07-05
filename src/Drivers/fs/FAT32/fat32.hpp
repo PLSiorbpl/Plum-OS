@@ -76,8 +76,9 @@ namespace fs::FAT32 {
         fat32_manager() = default;
         ~fat32_manager();
         void init(drivers::ahci::ahci_device& dev);
-        bool validate_fat32(const BPB &bpb);
+        static bool validate_fat32(const BPB &bpb);
         void read(uint32_t first_cluster, uint8_t partition, int8_t depth = 2, int8_t origin_d = 2);
+        void read_file(uint32_t first_cluster, uint8_t partition) const;
     private:
 
         drivers::ahci::ahci_device* device = nullptr;

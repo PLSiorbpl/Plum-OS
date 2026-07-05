@@ -6,6 +6,7 @@
 #include "arch/x86_64/IDT/IDT.hpp"
 
 namespace USB {
+
     constexpr uint16_t USB_DESCRIPTOR_REQUEST(uint8_t type, uint8_t index) {
         return (type << 8) | index;
     }
@@ -20,6 +21,8 @@ namespace USB {
 
         uintptr_t m_xhci_base;
     private:
+        xhci_device* m_slot_devices[256] = {};
+
         uint8_t irq_number;
 
         volatile xhci_capability_registers *m_cap_regs;
@@ -107,7 +110,7 @@ namespace USB {
         uint8_t _enable_device_slot();
 
         // Creates a device context buffer and inserts it into DCBAA
-        bool _create_device_context(uint8_t slot_id);
+        bool _create_device_context(uint8_t slot_id) const;
 
         // port is 0-based
         void _setup_device(uint8_t port);
@@ -131,7 +134,8 @@ namespace USB {
         int32_t _configure_endpoint(xhci_device* device,const xhci_usb_endpoint& ep);
         int32_t _hid_set_idle(xhci_device* device, uint8_t interface_num) const;
         int32_t _hid_set_protocol(xhci_device* device, uint8_t interface_num, uint8_t protocol) const;
-        int32_t _schedule_interrupt_in(xhci_device* device, const xhci_usb_endpoint& ep);
+        void _init_hid_endpoint(xhci_device* device, const xhci_usb_endpoint& ep, xhci_hid_type type) const;
+        void _arm_interrupt_in(const xhci_device* device, const xhci_hid_endpoint& hid) const;
         bool _wait_for_transfer(uint8_t slot, uint8_t dci, xhci_pending_transfer* out, uint32_t timeout_ms = 200);
     };
 

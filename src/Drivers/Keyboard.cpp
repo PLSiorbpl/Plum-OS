@@ -1,6 +1,6 @@
 #include "Keyboard.hpp"
-#include <arch/x86_64/Common/Common.hpp>
-#include "std/types.hpp"
+
+#include "arch/x86_64/Common/Common.hpp"
 #include "kernel/system.hpp"
 
 namespace kb {

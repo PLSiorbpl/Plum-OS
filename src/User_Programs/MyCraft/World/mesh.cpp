@@ -36,7 +36,7 @@ namespace MyCraft {
                         // Y+/-
                         if (y+1 >= Chunk::height || chunk->get(x, y+1, z).id == 0)
                             FaceY(chunk, w, 1);
-                        if (y+1 < 0 || chunk->get(x, y-1, z).id == 0)
+                        if (y-1 < 0 || chunk->get(x, y-1, z).id == 0)
                             FaceY(chunk, w, -1);
 
                         // Z+

@@ -15,6 +15,8 @@
 #include "xHCI_device.hpp"
 #include "kernel/log.h"
 #include "structs.hpp"
+#include "../mouse.hpp"
+#include "../keyboard.hpp"
 
 namespace USB {
     xhci_driver m_xhci_driver;
@@ -106,8 +108,7 @@ namespace USB {
 
         uint8_t command_completion_status = 0;
 
-        for (size_t i = 0; i < events.size(); i++) {
-            xhci_trb_t *event = events[i];
+        for (const auto event : events) {
             switch (event->trb_type) {
                 case XHCI_TRB_TYPE_CMD_COMPLETION_EVENT: {
                     command_completion_status = 1;
@@ -118,20 +119,38 @@ namespace USB {
                     break;
                 }
                 case XHCI_TRB_TYPE_TRANSFER_EVENT: {
-                    auto* xfer = reinterpret_cast<xhci_transfer_event_trb_t*>(event);
+                    const auto* xfer = reinterpret_cast<xhci_transfer_event_trb_t*>(event);
+                    const uint8_t slot = xfer->slot_id;
+                    const uint8_t dci  = xfer->endpoint_id;
 
-                    xhci_pending_transfer pending = {};
-                    pending.slot_id       = xfer->slot_id;
-                    pending.endpoint_id   = xfer->endpoint_id;
-                    pending.completion_code = xfer->completion_code;
-                    pending.residual      = xfer->trb_transfer_length;
+                    const xhci_device* dev = m_xhci_driver.m_slot_devices[slot];
+                    if (dev && dev->has_hid_ep(dci)) {
+                        const xhci_hid_endpoint& hid = *dev->get_hid_ep(dci);
 
-                    m_xhci_driver.m_pending_transfers.push_back(pending);
+                        if (xfer->completion_code == XHCI_TRB_COMPLETION_CODE_SUCCESS || xfer->completion_code == 13) {
+                            const auto* report = static_cast<uint8_t*>(hid.buf_virt);
 
-                    if (xfer->completion_code != XHCI_TRB_COMPLETION_CODE_SUCCESS &&
-                        xfer->completion_code != 13) { // 13 = Short Packet, normal for HID
-                        std::kernel::printf("[ xHCI ] transfer slot=%u ep=%u code=%s", xfer->slot_id, xfer->endpoint_id, trb_completion_code_to_string(xfer->completion_code));
+                            if (hid.type == xhci_hid_type::Mouse) {
+                                mouse_state.buttons = report[0];
+                                mouse_state.x += static_cast<int8_t>(report[1]);
+                                mouse_state.y += static_cast<int8_t>(report[2]);
+                                mouse_state.updated = true;
+
+                            } else if (hid.type == xhci_hid_type::Keyboard) {
+                                kb_push_key(report);
+                            }
                         }
+
+                        m_xhci_driver._arm_interrupt_in(dev, hid);
+
+                    } else {
+                        xhci_pending_transfer pending = {};
+                        pending.slot_id         = slot;
+                        pending.endpoint_id     = dci;
+                        pending.completion_code = xfer->completion_code;
+                        pending.residual        = xfer->trb_transfer_length;
+                        m_xhci_driver.m_pending_transfers.push_back(pending);
+                    }
                     break;
                 }
 
@@ -160,20 +179,14 @@ namespace USB {
         return false;
     }
 
-    int32_t xhci_driver::_schedule_interrupt_in(xhci_device* device, const xhci_usb_endpoint& ep) {
-        xhci_transfer_ring* ep_ring = device->get_ep_ring(ep.dci);
-        if (!ep_ring) {
-            log::error("[ xHCI ] no ring for DCI %u slot %u", ep.dci, device->get_slot());
-            return -1;
-        }
-
-        void* buf_virt = alloc_xhci_memory(ep.max_packet_size);
-        const uintptr_t buf_phys = xhci_get_physical_addr(buf_virt);
+    void xhci_driver::_arm_interrupt_in(const xhci_device* device, const xhci_hid_endpoint& hid) const {
+        xhci_transfer_ring* ep_ring = device->get_ep_ring(hid.dci);
+        if (!ep_ring) return;
 
         xhci_normal_trb_t trb = {};
         trb.trb_type = XHCI_TRB_TYPE_NORMAL;
-        trb.data_buffer = buf_phys;
-        trb.trb_transfer_length = ep.max_packet_size;
+        trb.data_buffer = hid.buf_phys;
+        trb.trb_transfer_length = hid.max_packet_size;
         trb.td_size = 0;
         trb.interrupter_target = 0;
         trb.ioc = 1;
@@ -181,27 +194,26 @@ namespace USB {
         trb.chain = 0;
 
         ep_ring->enqueue(reinterpret_cast<xhci_trb_t*>(&trb));
-        m_doorbell_manager->ring_doorbell(device->get_slot(), ep.dci);
+        m_doorbell_manager->ring_doorbell(hid.slot, hid.dci);
+    }
 
-        xhci_pending_transfer result = {};
-        if (!_wait_for_transfer(device->get_slot(), ep.dci, &result, 5000)) {
-            log::error("[ xHCI ] interrupt IN timeout slot=%u DCI=%u", device->get_slot(), ep.dci);
-            return -1;
-        }
+    void xhci_driver::_init_hid_endpoint(xhci_device* device, const xhci_usb_endpoint& ep, const xhci_hid_type type) const {
+        void* buf_virt = alloc_xhci_memory(ep.max_packet_size);
+        const uintptr_t buf_phys = xhci_get_physical_addr(buf_virt);
 
-        if (result.completion_code != XHCI_TRB_COMPLETION_CODE_SUCCESS && result.completion_code != 13) {
-            log::error("[ xHCI ] interrupt IN failed code=%s", trb_completion_code_to_string(result.completion_code));
-            return -1;
-            }
+        xhci_hid_endpoint hid = {};
+        hid.dci = ep.dci;
+        hid.slot = device->get_slot();
+        hid.buf_virt = buf_virt;
+        hid.buf_phys = buf_phys;
+        hid.max_packet_size = ep.max_packet_size;
+        hid.type = type;
 
-        auto* report = static_cast<uint8_t*>(buf_virt);
-        uint8_t actual = ep.max_packet_size - result.residual;
+        device->set_hid_ep(hid);
+        _arm_interrupt_in(device, hid);
 
-        log::info("[ HID ] raw report (%u bytes):", actual);
-        for (uint8_t b = 0; b < actual; b++)
-            log::info("  [%u] = %x (%i)", b, report[b], static_cast<int32_t>(report[b]));
-
-        return 0;
+        const char* type_str = (type == xhci_hid_type::Mouse) ? "Mouse" : (type == xhci_hid_type::Keyboard) ? "Keyboard" : "HID";
+        log::success("[ HID ] armed %s DCI=%u slot=%u", type_str, ep.dci, device->get_slot());
     }
 
     void xhci_driver::_parse_capability_registers() {
@@ -383,6 +395,8 @@ namespace USB {
         iman |= XHCI_IMAN_INTERRUPT_ENABLE;
         interrupter_regs->iman = iman;
 
+        interrupter_regs->imod = 40000; // 10ms minumum
+
         m_event_ring = new xhci_event_ring(XHCI_EVENT_RING_TRB_COUNT, interrupter_regs);
         _acknowledge_irq(0);
     }
@@ -520,7 +534,7 @@ namespace USB {
         return completion_trb->slot_id;
     }
 
-    bool xhci_driver::_create_device_context(const uint8_t slot_id) {
+    bool xhci_driver::_create_device_context(const uint8_t slot_id) const {
         const uint64_t device_context_size = m_64byte_context_size ? sizeof(xhci_device_context64) : sizeof(xhci_device_context32);
         void* ctx = alloc_xhci_memory(device_context_size,XHCI_DEVICE_CONTEXT_ALIGNMENT,XHCI_DEVICE_CONTEXT_BOUNDARY);
 
@@ -551,6 +565,7 @@ namespace USB {
         }
 
         auto* device = new xhci_device(port_id, slot_id, port_speed, m_64byte_context_size);
+        m_slot_devices[slot_id] = device;
 
         device->set_root_port_id(port_id);
         device->set_output_ctx(reinterpret_cast<void *>(m_dcbaa[slot_id]));
@@ -562,7 +577,7 @@ namespace USB {
         uint8_t slot_id = device->get_slot();
         const uint8_t port_speed = device->get_speed();
 
-        uint16_t max_packet_size = _initial_max_packet_size(port_speed);
+        const uint16_t max_packet_size = _initial_max_packet_size(port_speed);
         _configure_ctrl_ep_input_context(device, max_packet_size);
 
         // BRS 1
@@ -614,15 +629,16 @@ namespace USB {
                 }
             }
         }
-
         for (const auto & iface : config.interfaces) {
             if (iface.class_code == USB_CLASS_HID) {
                 _hid_set_idle(device, iface.number);
-                _hid_set_protocol(device, iface.number, 0); // 0 = boot protocol
+                _hid_set_protocol(device, iface.number, 0);
+
+                const xhci_hid_type hid_type = (iface.protocol == 1) ? xhci_hid_type::Keyboard : (iface.protocol == 2) ? xhci_hid_type::Mouse : xhci_hid_type::Unknown;
 
                 for (auto ep : iface.endpoints) {
-                    if (ep.type == 0x03 && ep.is_in) { // Interrupt IN
-                        _schedule_interrupt_in(device, ep);
+                    if (ep.type == 0x03 && ep.is_in) {
+                        _init_hid_endpoint(device, ep, hid_type);
                         break;
                     }
                 }
