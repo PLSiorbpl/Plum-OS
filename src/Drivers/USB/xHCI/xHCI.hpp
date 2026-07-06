@@ -19,9 +19,12 @@ namespace USB {
         bool start_device();
         bool shutdown_device();
 
+        void process_pending_port_changes();
+
         uintptr_t m_xhci_base;
     private:
         xhci_device* m_slot_devices[256] = {};
+        uint32_t m_psc_pending_bitmap = 0;
 
         uint8_t irq_number;
 
@@ -99,7 +102,7 @@ namespace USB {
         void _configure_runtime_registers();
         void _acknowledge_irq(uint8_t interrupter) const;
 
-        xhci_command_completion_trb_t *_send_command_trb(xhci_trb_t* cmd_trb, uint32_t timeout = 200);
+        xhci_command_completion_trb_t *_send_command_trb(xhci_trb_t* cmd_trb, uint32_t timeout = 500);
 
         // port number is 0-based
         bool _reset_port(uint8_t port_num);
@@ -116,27 +119,32 @@ namespace USB {
         void _setup_device(uint8_t port);
         void _enumerate_device(xhci_device *device);
 
+        void _delete_device(uint8_t port);
+        void _stop_device_endpoints(const xhci_device* device);
+        void _stop_endpoint(uint8_t slot, uint8_t dci);
+        void _disable_slot(uint8_t slot_id);
+
         static uint16_t _initial_max_packet_size(uint8_t speed);
         void _configure_ctrl_ep_input_context(xhci_device* device, uint16_t max_packet_size) const;
 
         void _address_device(const xhci_device* device, bool bsr);
 
-        int32_t _get_device_descriptor(xhci_device* device, void* out, uint16_t length);
+        int32_t _get_device_descriptor(const xhci_device* device, void* out, uint16_t length);
         int32_t _get_config_descriptor(xhci_device* device, uint8_t config_index = 0);
 
-        int32_t _send_control_transfer(xhci_device* device,xhci_device_request_packet& request,void* buffer, uint32_t length) const;
+        int32_t _send_control_transfer(const xhci_device* device,xhci_device_request_packet& request,void* buffer, uint32_t length, uint32_t timeout_ms = 1000);
 
         uint32_t _read_mfindex() const;
 
         void _evaluate_context(const xhci_device* device);
 
-        int32_t _set_configuration(xhci_device* device, uint8_t config_value) const;
+        int32_t _set_configuration(const xhci_device* device, uint8_t config_value);
         int32_t _configure_endpoint(xhci_device* device,const xhci_usb_endpoint& ep);
-        int32_t _hid_set_idle(xhci_device* device, uint8_t interface_num) const;
-        int32_t _hid_set_protocol(xhci_device* device, uint8_t interface_num, uint8_t protocol) const;
+        int32_t _hid_set_idle(const xhci_device* device, uint8_t interface_num);
+        int32_t _hid_set_protocol(const xhci_device* device, uint8_t interface_num, uint8_t protocol);
         void _init_hid_endpoint(xhci_device* device, const xhci_usb_endpoint& ep, xhci_hid_type type) const;
         void _arm_interrupt_in(const xhci_device* device, const xhci_hid_endpoint& hid) const;
-        bool _wait_for_transfer(uint8_t slot, uint8_t dci, xhci_pending_transfer* out, uint32_t timeout_ms = 200);
+        bool _wait_for_transfer(uint8_t slot, uint8_t dci, xhci_pending_transfer* out, uint32_t timeout_ms = 1000);
     };
 
     extern xhci_driver m_xhci_driver;

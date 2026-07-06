@@ -74,20 +74,54 @@ namespace USB {
             xhci_portsc_register portsc = _read_portsc_reg(port);
 
             if (portsc.csc && portsc.ccs) {
-                bool reset_successful = _reset_port(port);
+                const bool reset_successful = _reset_port(port);
 
                 portsc = _read_portsc_reg(port);
                 if (reset_successful) {
                     log::success("[ xHCI ] Device connected on port #&a%u &f- %s", port, _usb_speed_to_string(portsc.port_speed));
                     _setup_device(port);
                 } else {
-                    log::error("[ xHCI ] &cFailed &fto reset port #&a%u &fafter connection detection", port);
+                    log::error("[ xHCI ] Failed &fto reset port #&a%u &fafter connection detection", port);
                 }
             }
         }
 
         is_running = true;
         return true;
+    }
+
+    void xhci_driver::process_pending_port_changes() {
+        while (m_psc_pending_bitmap != 0) {
+            const uint32_t bitmap = m_psc_pending_bitmap;
+            m_psc_pending_bitmap = 0;
+
+            for (uint8_t port = 0; port < m_max_ports && bitmap != 0; port++) {
+                if (!(bitmap & (1u << port))) continue;
+
+                xhci_portsc_register portsc = _read_portsc_reg(port);
+
+                if (portsc.csc) {
+                    if (portsc.ccs) {
+                        const bool reset_successful = _reset_port(port);
+                        portsc = _read_portsc_reg(port);
+
+                        if (reset_successful) {
+                            log::success("[ xHCI ] Device connected on port #&a%u &f- %s", port, _usb_speed_to_string(portsc.port_speed));
+                            _setup_device(port);
+                        } else {
+                            log::error("[ xHCI ] Failed to reset device on port #&a%u", port);
+                        }
+                    } else {
+                        log::info("[ xHCI ] Device disconnected from port %u", port);
+                        _delete_device(port);
+
+                        portsc.csc = 1;
+                        portsc.pec = 1;
+                        m_xhci_driver._write_portsc_reg(portsc, port);
+                    }
+                }
+            }
+        }
     }
 
     bool xhci_driver::shutdown_device() {
@@ -116,6 +150,17 @@ namespace USB {
                     break;
                 }
                 case XHCI_TRB_TYPE_PORT_STATUS_CHANGE_EVENT: {
+                    const auto* ev = reinterpret_cast<xhci_port_status_change_trb_t*>(event);
+                    uint8_t port_id = ev->port_id;
+
+                    if (port_id < 1 || port_id > m_xhci_driver.m_max_ports) {
+                        log::warn("[ xHCI ] port status change for invalid port %u", port_id);
+                        break;
+                    }
+                    const uint8_t port = port_id - 1;
+                    if (port < 32) {
+                        m_xhci_driver.m_psc_pending_bitmap |= (1u << port);
+                    }
                     break;
                 }
                 case XHCI_TRB_TYPE_TRANSFER_EVENT: {
@@ -171,7 +216,7 @@ namespace USB {
                     if (out) *out = m_pending_transfers[i];
                     m_pending_transfers.erase(i);
                     return true;
-                    }
+                }
             }
             Time::Sleep(10);
             waited += 10;
@@ -549,6 +594,88 @@ namespace USB {
         return true;
     }
 
+    void xhci_driver::_delete_device(uint8_t port) {
+        const xhci_device* device = nullptr;
+        uint8_t slot_id = 0;
+
+        for (uint8_t s = 1; s <= m_max_device_slots; s++) {
+            if (m_slot_devices[s] && m_slot_devices[s]->get_port() == port + 1) {
+                device = m_slot_devices[s];
+                slot_id = s;
+                break;
+            }
+        }
+
+        if (!device) {
+            log::warn("[ xHCI ] No device on port %u", port);
+            return;
+        }
+
+        _stop_device_endpoints(device);
+        _disable_slot(slot_id);
+
+        for (uint8_t dci = 2; dci < 32; dci++) {
+            if (!device->has_hid_ep(dci)) continue;
+            const xhci_hid_endpoint& hid = *device->get_hid_ep(dci);
+
+            if (hid.type == xhci_hid_type::Mouse) {
+                mouse_state = {};
+                log::info("[ xHCI ] Mouse removed");
+            } else if (hid.type == xhci_hid_type::Keyboard) {
+                kb_state = {};
+                log::info("[ xHCI ] Keyboard removed");
+            }
+        }
+
+        m_slot_devices[slot_id] = nullptr;
+        m_dcbaa[slot_id] = 0;
+        m_dcbaa_virtual[slot_id] = 0;
+
+        for (size_t i = 0; i < m_pending_transfers.size(); ) {
+            if (m_pending_transfers[i].slot_id == slot_id) {
+                m_pending_transfers.erase(i);
+            } else {
+                i++;
+            }
+        }
+
+        delete device;
+
+        log::success("[ xHCI ] slot %u removed cleanly", slot_id);
+    }
+
+    void xhci_driver::_stop_device_endpoints(const xhci_device* device) {
+        for (uint8_t dci = 1; dci < 32; dci++) {
+            xhci_transfer_ring* ring = (dci == 1)
+                ? device->ctrl_ring()
+                : device->get_ep_ring(dci);
+            if (!ring) continue;
+
+            _stop_endpoint(device->get_slot(), dci);
+        }
+    }
+
+    void xhci_driver::_stop_endpoint(const uint8_t slot, const uint8_t dci) {
+        xhci_stop_endpoint_command_trb_t trb = {};
+        trb.trb_type = XHCI_TRB_TYPE_STOP_ENDPOINT_CMD;
+        trb.endpoint_id = dci;
+        trb.slot_id = slot;
+
+        if (!_send_command_trb(reinterpret_cast<xhci_trb_t *>(&trb))) {
+            log::error("[ xHCI ] Stop endpoint failed for slot %u", slot);
+        }
+    }
+
+    void xhci_driver::_disable_slot(uint8_t slot_id) {
+        xhci_disable_slot_command_trb_t trb = {};
+        trb.trb_type = XHCI_TRB_TYPE_DISABLE_SLOT_CMD;
+        trb.slot_id = slot_id;
+
+        if (!_send_command_trb(reinterpret_cast<xhci_trb_t *>(&trb))) {
+            log::error("[ xHCI ] Disable Slot failed for slot %u", slot_id);
+        }
+    }
+
     void xhci_driver::_setup_device(uint8_t port) {
         const uint8_t port_speed = _get_port_speed(port);
         const uint8_t port_id = port + 1;
@@ -582,6 +709,7 @@ namespace USB {
 
         // BRS 1
         _address_device(device, true);
+        Time::Sleep(50);
 
         usb_device_descriptor desc = {};
         if (_get_device_descriptor(device, &desc, 8) != 0) {
@@ -600,6 +728,7 @@ namespace USB {
 
         // BRS 0
         _address_device(device, false);
+        Time::Sleep(50);
 
         if (_get_device_descriptor(device, &desc, sizeof(desc)) != 0) {
             log::error("[ xHCI ] Failed to read full device descriptor for slot %u", slot_id);
@@ -745,7 +874,7 @@ namespace USB {
         _send_command_trb(reinterpret_cast<xhci_trb_t*>(&address_trb));
     }
 
-    int32_t xhci_driver::_get_device_descriptor(xhci_device* device, void* out, const uint16_t length) {
+    int32_t xhci_driver::_get_device_descriptor(const xhci_device* device, void* out, const uint16_t length) {
         xhci_device_request_packet req = {};
         req.bRequestType = 0x80;
         req.bRequest = 6;
@@ -810,7 +939,8 @@ namespace USB {
         return 0;
     }
 
-    int32_t xhci_driver::_send_control_transfer(xhci_device* device, xhci_device_request_packet& request, void* buffer, uint32_t length) const {
+
+    int32_t xhci_driver::_send_control_transfer(const xhci_device* device, xhci_device_request_packet& request, void* buffer, uint32_t length, const uint32_t timeout_ms) {
         xhci_transfer_ring* ring = device->ctrl_ring();
 
         void* dma_buffer = device->ctrl_transfer_buffer();
@@ -873,7 +1003,7 @@ namespace USB {
         ring->enqueue(reinterpret_cast<xhci_trb_t*>(&status));
 
         if (device->route_string() != 0 && device->get_speed() == XHCI_USB_SPEED_FULL_SPEED) {
-            for (uint32_t tries = 0; tries < 20; tries++) {
+            for (uint32_t tries = 0; tries < 50; tries++) {
                 if ((_read_mfindex() & 0x7) != 0)
                     break;
                 Time::Sleep(10);
@@ -889,7 +1019,7 @@ namespace USB {
         m_event_ring->flush_unprocessed_events();
 
         while (Time::tick < deadline) {
-            Time::Sleep(100);
+            Time::Sleep(50);
             _process_events();
             m_event_ring->flush_unprocessed_events();
         }
@@ -908,7 +1038,7 @@ namespace USB {
         return m_runtime_regs->mf_index & 0x3fff;
     }
 
-    int32_t xhci_driver::_set_configuration(xhci_device* device, const uint8_t config_value) const {
+    int32_t xhci_driver::_set_configuration(const xhci_device* device, const uint8_t config_value) {
         xhci_device_request_packet req = {};
         req.bRequestType = 0x00;
         req.bRequest = 0x09;
@@ -983,7 +1113,7 @@ namespace USB {
         return 0;
     }
 
-    int32_t xhci_driver::_hid_set_idle(xhci_device* device, const uint8_t interface_num) const {
+    int32_t xhci_driver::_hid_set_idle(const xhci_device* device, const uint8_t interface_num) {
         xhci_device_request_packet req = {};
         req.bRequestType = 0x21;
         req.bRequest = 0x0A; // SET_IDLE
@@ -993,7 +1123,7 @@ namespace USB {
         return _send_control_transfer(device, req, nullptr, 0);
     }
 
-    int32_t xhci_driver::_hid_set_protocol(xhci_device* device, const uint8_t interface_num, const uint8_t protocol) const {
+    int32_t xhci_driver::_hid_set_protocol(const xhci_device* device, const uint8_t interface_num, const uint8_t protocol) {
         xhci_device_request_packet req = {};
         req.bRequestType = 0x21;
         req.bRequest = 0x0B; // SET_PROTOCOL

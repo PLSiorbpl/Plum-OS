@@ -34,21 +34,24 @@ namespace USB {
     } xhci_command_completion_trb_t;
     static_assert(sizeof(xhci_command_completion_trb_t) == sizeof(uint32_t) * 4);
 
-    struct xhci_port_status_change_trb_t {
-        uint32_t reserved0;
-
-        uint32_t reserved1;
-
-        uint32_t reserved2;
-
+    typedef struct xhci_port_status_change_request_block {
         struct {
-            uint32_t cycle : 1;
-            uint32_t reserved3 : 9;
-            uint32_t trb_type : 6;
+            uint32_t rsvd0   : 24;
             uint32_t port_id : 8;
-            uint32_t reserved4 : 8;
         };
-    } __attribute__((packed));
+        uint32_t rsvd1;
+        struct {
+            uint32_t rsvd2           : 24;
+            uint32_t completion_code : 8;
+        };
+        struct {
+            uint32_t cycle_bit  : 1;
+            uint32_t rsvd3      : 9;
+            uint32_t trb_type   : 6;
+            uint32_t rsvd4      : 16;
+        };
+    } xhci_port_status_change_trb_t;
+    static_assert(sizeof(xhci_port_status_change_trb_t) == sizeof(uint32_t) * 4);
 
     typedef struct xhci_address_device_request_block {
         uint64_t input_context_physical_base;
@@ -71,6 +74,34 @@ namespace USB {
         };
     } xhci_address_device_command_trb_t;
     static_assert(sizeof(xhci_address_device_command_trb_t) == sizeof(uint32_t) * 4);
+
+    typedef struct xhci_disable_slot_command_request_block {
+        uint64_t rsvd0;
+        uint32_t rsvd1;
+        struct {
+            uint32_t cycle_bit   : 1;
+            uint32_t rsvd2       : 9;
+            uint32_t trb_type    : 6;
+            uint32_t rsvd3       : 8;
+            uint32_t slot_id     : 8;
+        };
+    } xhci_disable_slot_command_trb_t;
+    static_assert(sizeof(xhci_disable_slot_command_trb_t) == sizeof(uint32_t) * 4);
+
+    typedef struct xhci_stop_endpoint_command_request_block {
+        uint64_t rsvd0;
+        uint32_t rsvd1;
+        struct {
+            uint32_t cycle_bit    : 1;
+            uint32_t rsvd2        : 8;
+            uint32_t suspend      : 1;
+            uint32_t trb_type     : 6;
+            uint32_t endpoint_id  : 5;
+            uint32_t rsvd3        : 3;
+            uint32_t slot_id      : 8;
+        };
+    } xhci_stop_endpoint_command_trb_t;
+    static_assert(sizeof(xhci_stop_endpoint_command_trb_t) == sizeof(uint32_t) * 4);
 
     static inline const char* trb_completion_code_to_string(const uint8_t completion_code) {
         switch (completion_code) {

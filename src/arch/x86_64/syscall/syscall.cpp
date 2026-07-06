@@ -8,6 +8,7 @@
 #include "Drivers/vga.h"
 #include "Drivers/GPU/framebuffer.hpp"
 #include "Drivers/hpet/hpet.h"
+#include "Drivers/USB/xHCI/xHCI.hpp"
 #include "kernel/system.hpp"
 #include "kernel/Memory/heap.hpp"
 
@@ -18,21 +19,6 @@ extern "C" u64 user_r11 = 0;
 
 auto validate_user_ptr = [](const u64 ptr) -> bool {
     return ptr != 0;
-};
-
-enum class syscall_id : u64 {
-    write = 0,
-    put_char = 1,
-    serial_write = 2,
-    serial_put_char = 3,
-    get_key = 4,
-    exit = 5,
-    sleep = 6,
-    pci = 7,
-    heap = 8,
-    swap_framebuffer = 9,
-    list_partitions = 10,
-    OpenPL = 21,
 };
 
 extern "C" u64 dispatch_syscall(u64 id, u64 arg1, u64 arg2, u64 arg3) {
@@ -93,6 +79,10 @@ extern "C" u64 dispatch_syscall(u64 id, u64 arg1, u64 arg2, u64 arg3) {
 
         case syscall_id::list_partitions:
             systemPL::partition_manager.list_partitions();
+            return 0;
+
+        case syscall_id::USB:
+            USB::m_xhci_driver.process_pending_port_changes();
             return 0;
 
         case syscall_id::OpenPL: {

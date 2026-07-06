@@ -65,13 +65,16 @@ namespace systemPL {
 
         fb.init(framebuffer_info);
 
+        log::info("IDT:\n"); fb.swap();
         IDT::IDT_Install();
 
+        log::info("uACPI:\n"); fb.swap();
         uint8_t acpi_early_buf[4096];
         uacpi_setup_early_table_access(acpi_early_buf, sizeof(acpi_early_buf));
+        log::info("ioAPIC:\n");
         ioapic.init();
+        log::info("ACPI (may take a while):\n"); fb.swap();
         acpi.init();
-        fb.swap();
 
         log::info("HPET:\n"); fb.swap();
 

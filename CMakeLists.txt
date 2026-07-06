@@ -90,7 +90,7 @@ set_target_properties(Kernel PROPERTIES
 # All Images
 set(FAT_IMG ${CMAKE_SOURCE_DIR}/Images/fat.img)
 set(FAT32_IMG ${CMAKE_SOURCE_DIR}/Images/fat32.img)
-set(USB_IMG ${CMAKE_SOURCE_DIR}/Images/usb.img)
+#set(USB_IMG ${CMAKE_SOURCE_DIR}/Images/usbfat32.img)
 set(LIMINE ${CMAKE_SOURCE_DIR}/vendor/limine)
 
 set(OVMF ${CMAKE_SOURCE_DIR}/src_boot/ovmf_code_4M.fd)
@@ -147,6 +147,8 @@ set(QEMU_FLAGS
         #-device usb-tablet
 		-device usb-mouse
 		-device usb-kbd
+		#-device usb-storage,bus=xhci.0,drive=pendrive,removable=on
+		#-drive id=pendrive,file=${USB_IMG},format=raw,if=none
 		#-device virtio-keyboard-pci
         # ----- NET -----
         -netdev tap,id=n0,ifname=tap0,script=no,downscript=no

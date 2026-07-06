@@ -146,6 +146,7 @@ Command commands[12] = {
         },
         {
             "usb", [](int argc, char** argv) {
+                sys_usb();
             }
         },
         {

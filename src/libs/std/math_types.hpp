@@ -293,4 +293,27 @@ namespace glm {
             return (&x)[index];
         }
     };
+
+    struct mat4 {
+        float m[4][4] = {};
+
+        mat4() = default;
+        mat4(const float a, const float b, const float c, const float d,
+             const float a1, const float b1, const float c1, const float d1,
+             const float a2, const float b2, const float c2, const float d2,
+             const float a3, const float b3, const float c3, const float d3) {
+            m[0][0] = a; m[0][1] = b; m[0][2] = c; m[0][3] = d;
+            m[1][0] = a1; m[1][1] = b1; m[1][2] = c1; m[1][3] = d1;
+            m[2][0] = a2; m[2][1] = b2; m[2][2] = c2; m[2][3] = d2;
+            m[3][0] = a3; m[3][1] = b3; m[3][2] = c3; m[3][3] = d3;
+        }
+        explicit mat4(const float a) {
+            m[0][0] = a; m[0][1] = a; m[0][2] = a; m[0][3] = a;
+            m[1][0] = a; m[1][1] = a; m[1][2] = a; m[1][3] = a;
+            m[2][0] = a; m[2][1] = a; m[2][2] = a; m[2][3] = a;
+            m[3][0] = a; m[3][1] = a; m[3][2] = a; m[3][3] = a;
+        }
+
+        
+    };
 }
