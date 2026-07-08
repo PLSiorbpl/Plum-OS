@@ -5,12 +5,11 @@
 #include "world.hpp"
 #include "terrain.hpp"
 #include "Drivers/hpet/hpet.h"
-#include "mesh.hpp"
 
 namespace MyCraft {
     void GenerateChunks(const glm::ivec2 center, const int radius) {
-        for (int x = -radius-1; x < radius+1; x++) {
-            for (int z = -radius-1; z < radius+1; z++) {
+        for (int x = -radius-1; x <= radius+1; x++) {
+            for (int z = -radius-1; z <= radius+1; z++) {
                 const int chunk_x = center.x + x;
                 const int chunk_z = center.y + z;
 
@@ -22,26 +21,23 @@ namespace MyCraft {
                     if (chunk != nullptr) {
                         chunk->is_edge = is_edge;
                         if (!chunk->has_terrain) {
-                            Generate_terrain(chunk_x, chunk_z, chunk);
-                            chunk->has_terrain = true;
+                            Generate_terrain(chunk);
                         }
-                        if (chunk->has_terrain && !chunk->is_edge && !chunk->has_mesh) {
-                            Generate_mesh(chunk);
-                            chunk->has_mesh = true;
+                        if (chunk->has_mesh && chunk->is_edge) {
+                            chunk->mesh.release();
+                            chunk->has_mesh = false;
                         }
                         continue;
                     }
                 }
 
-                Chunk chunk = {};
+                Chunk chunk;
                 chunk.is_edge = is_edge;
+                chunk.chunk_x = chunk_x;
+                chunk.chunk_z = chunk_z;
 
-                Generate_terrain(chunk_x, chunk_z, &chunk);
-                chunk.has_terrain = true;
-                if (!is_edge) {
-                    Generate_mesh(&chunk);
-                    chunk.has_mesh = true;
-                }
+                Generate_terrain(&chunk);
+
                 World::world.push_back(std::move(chunk));
             }
         }

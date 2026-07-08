@@ -5,23 +5,32 @@
 #include "std/math_types.hpp"
 
 namespace MyCraft {
+    enum class Type : uint8_t {
+        Air = 0,
+        Grass = 1,
+        Stone = 2,
+    };
+
+    struct Block {
+        Type type = Type::Air;
+
+        explicit Block(const Type type = Type::Air) : type(type) {}
+    };
+
+    struct Vertex {
+        glm::vec3 pos = {};
+        glm::vec2 uv = {};
+    };
+
     class Chunk {
     public:
         Chunk() = default;
 
-        struct Block {
-            uint8_t id = 0;
-            // Transparent
-            uint8_t flags = 0;
-
-            Block(const uint8_t id = 0, const uint8_t flags = 0) : id(id), flags(flags) {}
-        };
-
-        static constexpr uint8_t width = 8;
-        static constexpr uint8_t height = 4;
-        static constexpr uint8_t depth = 8;
-        static constexpr uint32_t SIZE = 16*16*16;
-        Block blocks[SIZE] = {};
+        static constexpr uint8_t width = 16;
+        static constexpr uint8_t height = 48;
+        static constexpr uint8_t depth = 16;
+        static constexpr uint32_t SIZE = width*height*depth;
+        Block blocks[SIZE];
 
         int chunk_x = 0;
         int chunk_z = 0;
@@ -29,19 +38,10 @@ namespace MyCraft {
         bool has_terrain = false;
         bool has_mesh = false;
 
-        struct Vertex {
-            glm::vec3 pos = {};
-            glm::vec3 color = {};
-        };
         std::vector<Vertex> mesh;
 
         static int index(const int x, const int y, const int z) {
-            /*assert(x >= 0 && x < width);
-            assert(y >= 0 && y < height);
-            assert(z >= 0 && z < depth);*/
-
             const int idx = x + z * width + y * width * depth;
-            //assert(idx >= 0 && idx < (int)blocks.size());
             return idx;
         }
 

@@ -50,12 +50,12 @@ namespace OpenPL {
         };
 
         struct VS_ShaderOut {
-            glm::vec4 position = {};
+            glm::vec3 position = {};
 
             // interpolated values
             float varyings[MAX_VARYINGS] = {};
-            uint16_t used_mask;
-            uint16_t flat_mask;
+            uint16_t used_mask = 0;
+            uint16_t flat_mask = 0;
 
             float inv_w = 1.0f;
         };

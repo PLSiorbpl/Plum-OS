@@ -123,9 +123,9 @@ namespace OpenPL {
                 const auto& p2 = vertex_cache[i+1];
                 const auto& p3 = vertex_cache[i+2];
 
-                const auto p1_NDC = p1.position.get_v3() * glm::vec3(p1.inv_w);
-                const auto p2_NDC = p2.position.get_v3() * glm::vec3(p2.inv_w);
-                const auto p3_NDC = p3.position.get_v3() * glm::vec3(p3.inv_w);
+                const auto p1_NDC = p1.position * glm::vec3(p1.inv_w);
+                const auto p2_NDC = p2.position * glm::vec3(p2.inv_w);
+                const auto p3_NDC = p3.position * glm::vec3(p3.inv_w);
 
                 const glm::vec2 p1_screen = {((p1_NDC.x * 0.5f + 0.5f) * w_float), ((1.0f - (p1_NDC.y * 0.5f + 0.5f)) * h_float)};
                 const glm::vec2 p2_screen = {((p2_NDC.x * 0.5f + 0.5f) * w_float), ((1.0f - (p2_NDC.y * 0.5f + 0.5f)) * h_float)};

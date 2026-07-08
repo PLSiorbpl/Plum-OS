@@ -1,7 +1,9 @@
 #pragma once
 #include "chunk.hpp"
-
+#include "std/noise.hpp"
 
 namespace MyCraft {
-    void Generate_terrain(int chunk_x, int chunk_z, Chunk *chunk);
+    extern std::perlin2d rand;
+
+    void Generate_terrain(Chunk *chunk);
 }

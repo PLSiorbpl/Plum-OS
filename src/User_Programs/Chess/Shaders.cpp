@@ -31,21 +31,22 @@ namespace Chess {
         p.y = y2;
         p.z = z2 + 18.0f;
 
-        out->position = glm::vec4(p, p.z);
+        out->position = p;
         out->inv_w = 1.0f / p.z;
 
-        out->varyings[0] = color.r;
-        out->varyings[1] = color.g;
-        out->varyings[2] = color.b;
-        out->flat_mask = ~0b111;
-        out->used_mask = 0b111;
+        out->varyings[0] = out->inv_w;
+        out->varyings[1] = color.r / p.z;
+        out->varyings[2] = color.g / p.z;
+        out->varyings[3] = color.b / p.z;
+        out->flat_mask = ~0b1111;
+        out->used_mask = 0b1111;
     }
 
     bool frshader(const Shader::FR_ShaderIN *In, Shader::FS_ShaderOut *out, void *uniform) {
-        //const auto D = static_cast<uint8_t>(std::clamp(std::fract(In->depth), 0.0f, 1.0f) * 255);
-        const auto R = static_cast<uint8_t>(In->varyings[0] * 255);
-        const auto G = static_cast<uint8_t>(In->varyings[1] * 255);
-        const auto B = static_cast<uint8_t>(In->varyings[2] * 255);
+        const float w = 1.0f / In->varyings[0];
+        const auto R = static_cast<uint8_t>(In->varyings[1] * w * 255);
+        const auto G = static_cast<uint8_t>(In->varyings[2] * w * 255);
+        const auto B = static_cast<uint8_t>(In->varyings[3] * w * 255);
 
         out->color = (R << 16) | (G << 8) | B;
 

@@ -4,10 +4,12 @@
 #include "Drivers/GPU/OpenPL/OpenPL.hpp"
 #include "kernel/Memory/heap.hpp"
 #include "arch/x86_64/syscall/syscall.h"
+#include "Assets/textures.hpp"
 #include "std/math.hpp"
 #include "std/printf.hpp"
 #include "World/chunk.hpp"
 #include "World/generation.hpp"
+#include "World/mesh.hpp"
 #include "World/world.hpp"
 
 namespace MyCraft {
@@ -19,20 +21,24 @@ namespace MyCraft {
     Uniforms uni = {};
 
     void main(const int argc, char** argv) {
-        // One of legacy resolutions
         setup_window(480, 360);
+        Texture_init();
 
-        uni.cam = {0, -2.0f, 0};
+        uni.cam = {0, -20.0f, 0};
 
         glm::ivec2 cam_chunk{};
         auto last_cam_chunk = glm::ivec2(9999999);
 
         while (true) {
-            kb::key_code key = sys_get_key(false);
+            const kb::key_code key = sys_get_key(false);
 
             if (cam_chunk != last_cam_chunk) {
-                GenerateChunks(cam_chunk, 4);
-                RemoveChunks(cam_chunk, 4);
+                GenerateChunks(cam_chunk, 2);
+                RemoveChunks(cam_chunk, 2);
+                for (auto &chunk : World::world) {
+                    if (chunk.has_mesh || !chunk.has_terrain || chunk.is_edge) continue;
+                    Generate_mesh(&chunk);
+                }
                 last_cam_chunk = cam_chunk;
             }
 
@@ -42,25 +48,25 @@ namespace MyCraft {
                 return;
             }
             if (key == kb::key_code::KEY_A)
-                uni.cam.x += 0.1f;
+                uni.cam.x += 0.5f;
             if (key == kb::key_code::KEY_D)
-                uni.cam.x -= 0.1f;
+                uni.cam.x -= 0.5f;
             if (key == kb::key_code::KEY_S)
-                uni.cam.z += 0.1f;
+                uni.cam.z += 0.5f;
             if (key == kb::key_code::KEY_W)
-                uni.cam.z -= 0.1f;
+                uni.cam.z -= 0.5f;
             if (key == kb::key_code::KEY_Q)
-                uni.cam.y += 0.1f;
+                uni.cam.y += 0.5f;
             if (key == kb::key_code::KEY_E)
-                uni.cam.y -= 0.1f;
-            cam_chunk.x = -std::floor(uni.cam.x / static_cast<float>(Chunk::width));
-            cam_chunk.y = -std::floor(uni.cam.z / static_cast<float>(Chunk::depth));
+                uni.cam.y -= 0.5f;
+            cam_chunk.x = std::floor(-uni.cam.x / static_cast<float>(Chunk::width));
+            cam_chunk.y = std::floor(-uni.cam.z / static_cast<float>(Chunk::depth));
 
-            ctx.Clear(0x303030);
+            ctx.Clear(0x87CEFA);
 
             ctx.set_uniform_ptr(reinterpret_cast<uint8_t *>(&uni));
             ctx.set_vertex_attr_type(0, AttributeType::ATTR_VEC3); // Position
-            ctx.set_vertex_attr_type(1, AttributeType::ATTR_VEC3); // Color
+            ctx.set_vertex_attr_type(1, AttributeType::ATTR_VEC2); // Color
             for (auto &chunk : World::world) {
                 chunk.Draw();
             }

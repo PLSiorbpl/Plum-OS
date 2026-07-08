@@ -25,7 +25,7 @@ inline uint64_t range(void *a, void *b) {
 
 void list_commands(int argc, char** argv);
 
-Command commands[12] = {
+Command commands[13] = {
     {"help", list_commands},
     {
         "clear", [](int argc, char** argv) {
@@ -36,11 +36,14 @@ Command commands[12] = {
             Chess::main(argc, argv);
         }
     },{
+        "m", [](int argc, char** argv) {
+            MyCraft::main(argc, argv);
+        }
+    },{
         "mycraft", [](int argc, char** argv) {
             MyCraft::main(argc, argv);
         }
-    },
-        {
+    },{
             "poweroff", [](int argc, char** argv) {
                 std::printf("&c\tShutting down in 5s (press ENTER to cancel!)\n");
                 if (!Time::WaitForKey(5000, kb::key_code::KEY_ENTER)) {
