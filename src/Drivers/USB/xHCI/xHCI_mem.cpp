@@ -32,7 +32,7 @@ namespace USB {
             log::error("======= MEMORY ALLOCATION FAILED =======\n");
         }
 
-        mem::memset(memblock, 0, size);
+        std::memset(memblock, 0, size);
         return memblock;
     }
 

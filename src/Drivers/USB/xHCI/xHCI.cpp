@@ -440,7 +440,7 @@ namespace USB {
         iman |= XHCI_IMAN_INTERRUPT_ENABLE;
         interrupter_regs->iman = iman;
 
-        interrupter_regs->imod = 40000; // 10ms minumum
+        interrupter_regs->imod = 0;
 
         m_event_ring = new xhci_event_ring(XHCI_EVENT_RING_TRB_COUNT, interrupter_regs);
         _acknowledge_irq(0);
@@ -802,7 +802,7 @@ namespace USB {
 
     void xhci_driver::_configure_ctrl_ep_input_context(xhci_device* device, const uint16_t max_packet_size) const {
         const size_t ctx_size = XHCI_CSZ(m_cap_regs) ? sizeof(xhci_input_context64) : sizeof(xhci_input_context32);
-        mem::memset(device->get_input_ctrl_ctx(), 0, ctx_size);
+        std::memset(device->get_input_ctrl_ctx(), 0, ctx_size);
 
         auto* input_ctrl = device->get_input_ctrl_ctx();
         auto* slot_ctx = device->get_input_slot_ctx();
@@ -905,6 +905,10 @@ namespace USB {
 
         if (header.bDescriptorType != USB_DESCRIPTOR_CONFIGURATION) {
             log::error("[ xHCI ] got descriptor type %x instead of config for slot %u", header.bDescriptorType, slot_id);
+            log::info("[ xHCI ] config header raw bytes:");
+            uint8_t* raw = reinterpret_cast<uint8_t*>(&header);
+            for (int i = 0; i < 9; i++)
+                log::info("  [%d] = %x", i, raw[i]);
             return -1;
         }
 
@@ -915,7 +919,7 @@ namespace USB {
         }
 
         auto* buf = static_cast<uint8_t*>(heap::malloc(total_length));
-        mem::memset(buf, 0, total_length);
+        std::memset(buf, 0, total_length);
 
         {
             xhci_device_request_packet req = {};
@@ -940,7 +944,7 @@ namespace USB {
     }
 
 
-    int32_t xhci_driver::_send_control_transfer(const xhci_device* device, xhci_device_request_packet& request, void* buffer, uint32_t length, const uint32_t timeout_ms) {
+    int32_t xhci_driver::_send_control_transfer(const xhci_device* device, xhci_device_request_packet& request, void* buffer, uint32_t length, const uint32_t timeout_ms) const {
         xhci_transfer_ring* ring = device->ctrl_ring();
 
         void* dma_buffer = device->ctrl_transfer_buffer();
@@ -957,9 +961,9 @@ namespace USB {
         const bool is_in = (request.transfer_direction != 0);
 
         if (length > 0 && !is_in && buffer) {
-            mem::memcpy(dma_buffer, buffer, length);
+            std::memcpy(dma_buffer, buffer, length);
         } else {
-            mem::memset(dma_buffer, 0, length > 0 ? length : 1);
+            std::memset(dma_buffer, 0, length > 0 ? length : 1);
         }
 
         // Setup Stage TRB
@@ -1025,7 +1029,7 @@ namespace USB {
         }
 
         if (buffer && length > 0 && is_in) {
-            mem::memcpy(buffer, dma_buffer, length);
+            std::memcpy(buffer, dma_buffer, length);
         }
 
         return 0;
@@ -1087,7 +1091,7 @@ namespace USB {
         }
 
         auto* ep_ctx = device->get_ep_ctx_by_dci(dci);
-        mem::memset(ep_ctx, 0, sizeof(xhci_endpoint_context32));
+        std::memset(ep_ctx, 0, sizeof(xhci_endpoint_context32));
 
         ep_ctx->endpoint_type = xhci_ep_type;
         ep_ctx->max_packet_size = ep.max_packet_size;

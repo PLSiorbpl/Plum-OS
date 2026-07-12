@@ -176,7 +176,7 @@ namespace RTL8139 {
             return false;
         }
 
-        mem::memcpy(tx_buffers[tx_slot], data, length);
+        std::memcpy(tx_buffers[tx_slot], data, length);
 
         const auto phys_tx = to_physical(tx_buffers[tx_slot]);
 

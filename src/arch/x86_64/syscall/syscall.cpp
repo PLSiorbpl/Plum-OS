@@ -5,12 +5,11 @@
 #include "arch/x86_64/Common/Common.hpp"
 #include "Drivers/Keyboard.hpp"
 #include "Drivers/PCI.hpp"
-#include "Drivers/vga.h"
 #include "Drivers/GPU/framebuffer.hpp"
-#include "Drivers/hpet/hpet.h"
 #include "Drivers/USB/xHCI/xHCI.hpp"
 #include "kernel/system.hpp"
 #include "kernel/Memory/heap.hpp"
+#include "Drivers/Network/socket.hpp"
 
 extern "C" u64 user_rsp = 0;
 
@@ -89,6 +88,9 @@ extern "C" u64 dispatch_syscall(u64 id, u64 arg1, u64 arg2, u64 arg3) {
             const auto ctx = reinterpret_cast<OpenPL::Context *>(arg1);
             ctx->Swap();
             return 0;
+        }
+        case syscall_id::socket: {
+            return soc::recv(static_cast<int>(arg1), *reinterpret_cast<soc::udp_recv_packet *>(arg2), static_cast<int>(arg3));
         }
         default:
             return static_cast<u64>(-1); // ENOSYS

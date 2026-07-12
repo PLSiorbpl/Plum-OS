@@ -31,10 +31,10 @@ namespace OpenPL {
         const uint32_t h = framebuffer.height;
         const float depth = pipeline.far_plane;
         uint32_t bits;
-        mem::memcpy(&bits, &depth, sizeof(depth));
+        std::memcpy(&bits, &depth, sizeof(depth));
 
-        mem::memset32(fb, Color, h*w);
-        mem::memset32(reinterpret_cast<uint32_t *>(db), bits, h*w);
+        std::memset32(fb, Color, h*w);
+        std::memset32(reinterpret_cast<uint32_t *>(db), bits, h*w);
     }
 
     bool Context::set_vertex_attr_type(const uint8_t attribute, const AttributeType type) {
@@ -158,9 +158,13 @@ namespace OpenPL {
                 const glm::vec3 ABC2 = {p3_screen.y - p1_screen.y, p1_screen.x - p3_screen.x, p3_screen.x * p1_screen.y - p3_screen.y * p1_screen.x};
                 const glm::vec3 ABC3 = {p1_screen.y - p2_screen.y, p2_screen.x - p1_screen.x, p1_screen.x * p2_screen.y - p1_screen.y * p2_screen.x};
 
-                float w1_row = ABC1.x*x_min + ABC1.y*y_min + ABC1.z;
-                float w2_row = ABC2.x*x_min + ABC2.y*y_min + ABC2.z;
-                float w3_row = ABC3.x*x_min + ABC3.y*y_min + ABC3.z;
+                float w1_row = ABC1.x*(x_min+0.5f) + ABC1.y*(y_min+0.5f) + ABC1.z;
+                float w2_row = ABC2.x*(x_min+0.5f) + ABC2.y*(y_min+0.5f) + ABC2.z;
+                float w3_row = ABC3.x*(x_min+0.5f) + ABC3.y*(y_min+0.5f) + ABC3.z;
+
+                bool tl1 = isTopLeft(p2_screen, p3_screen);
+                bool tl2 = isTopLeft(p3_screen, p1_screen);
+                bool tl3 = isTopLeft(p1_screen, p2_screen);
 
                 const float* v0 = p1.varyings;
                 const float* v1 = p2.varyings;
@@ -209,12 +213,12 @@ namespace OpenPL {
                 for (int y = y_min; y < y_max; y++) {
                     uint32_t idx = (x_min + y * w) - 1; // -1 bc we increment at start
                     // - ABCx.x bc we increment at start
-                    float w1 = w1_row;
-                    float w2 = w2_row;
-                    float w3 = w3_row;
-                    float depth = depth_row;
+                    float w1 = w1_row - ABC1.x;
+                    float w2 = w2_row - ABC2.x;
+                    float w3 = w3_row - ABC3.x;
+                    float depth = depth_row - depth_dx;
                     for (int v_idx = 0; v_idx <= last_used_varying; v_idx++) {
-                        vars[v_idx] = vars_row[v_idx];
+                        vars[v_idx] = vars_row[v_idx] - vars_dx[v_idx];
                     }
                     for (int x = x_min; x < x_max; x++) {
                         // At start bc if at end it would sometimes be skipped if not in triangle
@@ -231,9 +235,18 @@ namespace OpenPL {
                         if (depth >= db[idx] || depth < near_plane) continue;
 
                         // In triangle test             Back                                 Front
-                        const bool inside = (w1 >= 0 && w2 >= 0 && w3 >= 0) || (w1 <= 0 && w2 <= 0 && w3 <= 0);
-
-                        if (!inside) continue;
+                        //const bool inside = (w1 >= 0 && w2 >= 0 && w3 >= 0) || (w1 <= 0 && w2 <= 0 && w3 <= 0);
+                        // Top left rule
+                        constexpr float eps = 1e-6f;
+                        if (area > 0.0f) {
+                            if (!((w1 > 0 || (std::abs(w1) <= eps && tl1)) &&
+                                (w2 > 0 || (std::abs(w2) <= eps && tl2)) &&
+                                (w3 > 0 || (std::abs(w3) <= eps && tl3)))) continue;
+                        } else {
+                            if (!((w1 < 0 || (std::abs(w1) <= eps && tl1)) &&
+                                (w2 < 0 || (std::abs(w2) <= eps && tl2)) &&
+                                (w3 < 0 || (std::abs(w3) <= eps && tl3)))) continue;
+                        }
 
                         // Fragment shader Call
                         fs_in.x = x; fs_in.y = y; fs_in.depth = depth;

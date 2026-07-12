@@ -3,6 +3,7 @@
 #include "kernel/Memory/heap.hpp"
 #include "std/mem_common.hpp"
 #include "kernel/log.h"
+#include "Drivers/Network/socket.hpp"
 
 namespace NET {
     void receive_udp(Net_Device *dev, const uint8_t *frame, uint16_t len) {
@@ -16,14 +17,20 @@ namespace NET {
 
         const uint16_t payload_len = Bswap_16(udp->length) - sizeof(UDPHeader);
 
-        auto *buf = static_cast<uint8_t *>(heap::malloc(payload_len + 1));
+        auto *buf = static_cast<uint8_t *>(heap::malloc(payload_len));
         const uint8_t* payload = reinterpret_cast<uint8_t *>(udp) + sizeof(UDPHeader);
-        mem::memcpy(buf, payload, payload_len);
+        std::memcpy(buf, payload, payload_len);
 
-        buf[payload_len] = '\0';
-
-        log::info("[ NET ] UDP from port: %u -> %u payload: &e%s", static_cast<uint32_t>(Bswap_16(udp->src_port)),
-                  static_cast<uint32_t>(Bswap_16(udp->dst_port)), buf);
-        heap::free(buf);
+        const auto socket = soc::find_socket_port(Bswap_16(udp->dst_port));
+        if (socket != nullptr) {
+            soc::udp_recv_packet recv = {};
+            recv.from_port = Bswap_16(udp->src_port);
+            recv.from_ip = Bswap_32(ip->src_ip);
+            recv.size = payload_len;
+            recv.data = buf;
+            socket->rx_queue.push(recv);
+        }
     }
+
+    //void send_udp(Net_Device *dev, )
 }

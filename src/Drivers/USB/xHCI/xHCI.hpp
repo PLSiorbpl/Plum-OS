@@ -132,7 +132,7 @@ namespace USB {
         int32_t _get_device_descriptor(const xhci_device* device, void* out, uint16_t length);
         int32_t _get_config_descriptor(xhci_device* device, uint8_t config_index = 0);
 
-        int32_t _send_control_transfer(const xhci_device* device,xhci_device_request_packet& request,void* buffer, uint32_t length, uint32_t timeout_ms = 1000);
+        int32_t _send_control_transfer(const xhci_device* device,xhci_device_request_packet& request,void* buffer, uint32_t length, uint32_t timeout_ms = 2000) const;
 
         uint32_t _read_mfindex() const;
 

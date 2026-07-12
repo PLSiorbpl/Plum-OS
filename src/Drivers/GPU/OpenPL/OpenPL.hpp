@@ -104,6 +104,13 @@ namespace OpenPL {
         return (B.x - A.x) * (P.y - A.y) - (B.y - A.y) * (P.x - A.x);
     }
 
+    inline bool isTopLeft(const glm::vec2 a, const glm::vec2 b) {
+        const float dx = b.x - a.x;
+        const float dy = b.y - a.y;
+
+        return (dy < 0) || (dy == 0 && dx > 0);
+    }
+
     class Context {
     public:
         bool bind_vertex_buffer(uint8_t *buffer, uint64_t size);

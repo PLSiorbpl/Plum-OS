@@ -1,6 +1,6 @@
 #include "types.hpp"
 
-namespace mem {
+namespace std {
     extern "C" void* memcpy(void* dst, const void* src, const uint64_t size) {
         auto d64 = static_cast<uint64_t *>(dst);
         auto s64 = static_cast<const uint64_t *>(src);

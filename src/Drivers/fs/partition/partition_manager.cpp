@@ -59,7 +59,7 @@ namespace fs::partition {
 
         for (u32 i = 0; i < header->partition_entry_count; i++) {
             const auto* entry = reinterpret_cast<gpt_partition*>(reinterpret_cast<u8*>(partitions_buf) + i * header->partition_entry_size);
-            if (mem::memcmp(entry->type_guid, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) == true)
+            if (std::memcmp(entry->type_guid, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) == true)
                 continue;
             if (entry->starting_lba == 0)
                 continue;
@@ -86,7 +86,7 @@ namespace fs::partition {
 
         for (u32 i = 0; i < partitions.size(); i++) {
             auto partition = &partitions[i];
-            if (mem::memcmp(partition->type_guid, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) == true)
+            if (std::memcmp(partition->type_guid, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) == true)
                 continue;
             if (partition->starting_lba == 0)
                 continue;
@@ -110,7 +110,7 @@ namespace fs::partition {
         if (id >= partitions.size())
             return false;
         auto tmp = &partitions[id];
-        if (mem::memcmp(tmp->type_guid, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) == true)
+        if (std::memcmp(tmp->type_guid, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) == true)
             return false;
         if (tmp->starting_lba == 0)
             return false;
@@ -121,7 +121,7 @@ namespace fs::partition {
     }
 
     bool partition_manager::validate_gpt() const {
-        if (mem::memcmp(&header->signature, "EFI PART", 8) == false) {
+        if (std::memcmp(&header->signature, "EFI PART", 8) == false) {
             log::warn("[ GPT ] Failed to find signature bytes for GPT partition.");
             return false;
         }

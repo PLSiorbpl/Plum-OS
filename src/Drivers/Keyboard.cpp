@@ -4,7 +4,7 @@
 #include "kernel/system.hpp"
 
 namespace kb {
-    mem::Ring_Buffer<uint8_t, 256> buf = {};
+    std::Ring_Buffer<uint8_t, 256> buf = {};
 
     /*
     Waits for char in buffer

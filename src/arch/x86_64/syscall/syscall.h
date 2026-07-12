@@ -2,6 +2,7 @@
 #include "Drivers/Keyboard.hpp"
 #include "std/types.hpp"
 #include "Drivers/GPU/OpenPL/OpenPL.hpp"
+#include "Drivers/Network/socket.hpp"
 
 enum class syscall_id : u64 {
     write = 0,
@@ -17,6 +18,7 @@ enum class syscall_id : u64 {
     list_partitions = 10,
     USB = 20,
     OpenPL = 21,
+    socket = 22,
 };
 
 inline u64 syscall(u64 id, u64 a1 = 0, u64 a2 = 0, u64 a3 = 0) {
@@ -80,4 +82,8 @@ inline void sys_usb() {
 
 inline void sys_openPL(OpenPL::Context *ctx, const uint32_t Operation) {
     syscall(21, reinterpret_cast<u64>(ctx), Operation);
+}
+
+inline bool sys_socket(int socket, soc::udp_recv_packet *recv, int timeout = 0) {
+    return syscall(22, static_cast<u64>(socket), reinterpret_cast<u64>(recv), static_cast<u64>(timeout));
 }

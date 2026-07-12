@@ -68,11 +68,11 @@ namespace USB {
         if (m_use64byte_ctx) {
             auto* input_ctx = static_cast<xhci_input_context64*>(m_input_ctx);
             xhci_device_context64* input_device_ctx = &input_ctx->device_context;
-            mem::memcpy(input_device_ctx, reinterpret_cast<u64 *>(to_virtual(out_ctx)), sizeof(xhci_device_context64));
+            std::memcpy(input_device_ctx, reinterpret_cast<u64 *>(to_virtual(out_ctx)), sizeof(xhci_device_context64));
         } else {
             auto* input_ctx = static_cast<xhci_input_context32*>(m_input_ctx);
             xhci_device_context32* input_device_ctx = &input_ctx->device_context;
-            mem::memcpy(input_device_ctx,  reinterpret_cast<u64 *>(to_virtual(out_ctx)), sizeof(xhci_device_context32));
+            std::memcpy(input_device_ctx,  reinterpret_cast<u64 *>(to_virtual(out_ctx)), sizeof(xhci_device_context32));
         }
     }
 

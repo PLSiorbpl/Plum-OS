@@ -18,7 +18,7 @@ namespace Paging {
 
     uint64_t alloc_page() {
         const auto virt = reinterpret_cast<uint64_t>(heap::malloc_align(4096, 4096));
-        mem::memset(reinterpret_cast<void*>(virt), 0, 4096);
+        std::memset(reinterpret_cast<void*>(virt), 0, 4096);
         return virt - hhdm_offset;
     }
 

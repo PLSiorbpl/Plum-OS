@@ -8,7 +8,7 @@ namespace USB {
         bool     updated   = false;
     };
 
-    inline usb_keyboard_state kb_state;
+    extern usb_keyboard_state kb_state;
 
     void kb_push_key(const uint8_t *report);
 

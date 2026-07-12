@@ -35,10 +35,10 @@ namespace NET {
 
         reply.opcode = Bswap_16(2); // 2 - Reply
 
-        mem::memcpy(reply.sender_mac, dev->get_mac(), 6); // Me MAC
+        std::memcpy(reply.sender_mac, dev->get_mac(), 6); // Me MAC
         reply.sender_ip = Bswap_32( dev->get_ipv4() ); // My ip 10.0.0.2
 
-        mem::memcpy(reply.target_mac, eth->src_mac, 6);      // Sender MAC
+        std::memcpy(reply.target_mac, eth->src_mac, 6);      // Sender MAC
         reply.target_ip = arp->sender_ip;                        // Sender IP
 
         send_ethernet(dev, reply.target_mac, Bswap_16(ARP_Ether_Type), &reply, sizeof(ARPHeader));

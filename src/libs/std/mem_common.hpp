@@ -8,7 +8,7 @@ namespace std {
     }
 }
 
-namespace mem {
+namespace std {
     extern "C" void* memcpy(void* dst, const void* src, uint64_t size);
     extern "C" volatile void* memmove(volatile void* dst, volatile const void* src, uint64_t size);
 

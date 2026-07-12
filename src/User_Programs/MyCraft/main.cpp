@@ -11,6 +11,7 @@
 #include "World/generation.hpp"
 #include "World/mesh.hpp"
 #include "World/world.hpp"
+#include "Drivers/Network/socket.hpp"
 
 namespace MyCraft {
     using namespace OpenPL;

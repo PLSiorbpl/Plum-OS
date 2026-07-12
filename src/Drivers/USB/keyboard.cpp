@@ -3,6 +3,8 @@
 #include "Drivers/Keyboard.hpp"
 
 namespace USB {
+    usb_keyboard_state kb_state = {};
+
     void kb_push_key(const uint8_t *report) {
         uint8_t* prev = kb_state.keys;
 
@@ -19,5 +21,7 @@ namespace USB {
                 kb::buf.push(hid_to_ps2[hid_key]);
             }
         }
+        for (int k = 0; k < 6; k++)
+            kb_state.keys[k] = report[2+k];
     }
 }

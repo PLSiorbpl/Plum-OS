@@ -1,7 +1,7 @@
 #pragma once
 #include "types.hpp"
 
-namespace mem {
+namespace std {
     template<typename T, uint32_t size>
     struct Ring_Buffer {
         T data[size] = {};

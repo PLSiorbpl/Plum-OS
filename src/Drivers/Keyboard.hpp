@@ -6,7 +6,7 @@ namespace kb {
         char data[256];
     };
 
-    extern mem::Ring_Buffer<uint8_t, 256> buf;
+    extern std::Ring_Buffer<uint8_t, 256> buf;
 
     enum class key_code : uint8_t {
         // ---- Base set (scancode = index) ----

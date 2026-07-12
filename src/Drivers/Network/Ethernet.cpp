@@ -43,12 +43,12 @@ namespace NET {
 
         auto* hdr = reinterpret_cast<EthernetHeader *>(frame);
 
-        mem::memcpy(hdr->dst_mac, dst_mac, 6);
-        mem::memcpy(hdr->src_mac, dev->get_mac(), 6);
+        std::memcpy(hdr->dst_mac, dst_mac, 6);
+        std::memcpy(hdr->src_mac, dev->get_mac(), 6);
 
         hdr->ethertype = ethertype;
 
-        mem::memcpy(frame+sizeof(EthernetHeader), payload, len);
+        std::memcpy(frame+sizeof(EthernetHeader), payload, len);
 
         dev->send(frame, len + sizeof(EthernetHeader));
     }

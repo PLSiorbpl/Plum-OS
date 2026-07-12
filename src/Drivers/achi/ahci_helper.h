@@ -9,7 +9,7 @@ namespace drivers::ahci {
     inline void* allocate_virtual_memory(u64 size, u64 alignment) {
         const auto out = heap::malloc_align(size, alignment);
         //Paging::Map_memory(reinterpret_cast<u64>(out), reinterpret_cast<u64>(out) + size, Paging::Profile::MMIO);
-        mem::memset(out, 0, size);
+        std::memset(out, 0, size);
         return out;
     }
 

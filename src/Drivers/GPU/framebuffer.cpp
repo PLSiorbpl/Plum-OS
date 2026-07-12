@@ -37,14 +37,14 @@ namespace framebuffer {
     void framebuffer::swap() {
         if (!initialized || !is_dirty)
             return;
-        mem::memcpy(front_buffer, back_buffer, info.size);
+        std::memcpy(front_buffer, back_buffer, info.size);
         is_dirty = false;
     }
 
     void framebuffer::clear(const u32 color) {
         const bool old_flag = x64::get_INT_flag();
         x64::set_INT_flag(false);
-        mem::memset32(back_buffer, color, info.height * info.pixels_in_scanline);
+        std::memset32(back_buffer, color, info.height * info.pixels_in_scanline);
         x64::set_INT_flag(old_flag);
         is_dirty = true;
     }
@@ -124,8 +124,8 @@ namespace framebuffer {
 
         const uint32_t pitch = info.pixels_in_scanline;
 
-        mem::memcpy(back_buffer,back_buffer + scroll_px * pitch,(info.height - scroll_px) * pitch * sizeof(u32));
-        mem::memset32(back_buffer + (info.height - scroll_px) * pitch,BACKGROUND_COLOR,scroll_px * pitch);
+        std::memcpy(back_buffer,back_buffer + scroll_px * pitch,(info.height - scroll_px) * pitch * sizeof(u32));
+        std::memset32(back_buffer + (info.height - scroll_px) * pitch,BACKGROUND_COLOR,scroll_px * pitch);
 
         is_dirty = true;
         x64::set_INT_flag(old_flag);

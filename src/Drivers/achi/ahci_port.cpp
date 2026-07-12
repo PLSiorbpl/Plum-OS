@@ -131,14 +131,14 @@ namespace drivers::ahci {
         header.clear = true;
 
         const auto table = command_slots[slot].table;
-        mem::memset(table, 0, sizeof(command_table));
+        std::memset(table, 0, sizeof(command_table));
         table->prdt[0].data_base_address = static_cast<u32>(to_physical(reinterpret_cast<u64>(buffer)));
         table->prdt[0].data_base_address_upper = bits_is_64 ? static_cast<u32>(to_physical(reinterpret_cast<u64>(buffer)) >> 32) : 0;
         table->prdt[0].data_byte_count = 512 - 1;
         table->prdt[0].interrupt_on_complete = true;
 
         const auto command_fis = reinterpret_cast<fis::reg_h2d*>(table->command_fis);
-        mem::memset(command_fis, 0, sizeof(fis::reg_h2d));
+        std::memset(command_fis, 0, sizeof(fis::reg_h2d));
         command_fis->fis_type = static_cast<u8>(fis::type::FIS_TYPE_REG_H2D);
         command_fis->command_control = 1;
         command_fis->command = ATA_CMD_IDENTIFY;
@@ -165,7 +165,7 @@ namespace drivers::ahci {
         header.clear = true;
 
         const auto table = command_slots[slot].table;
-        mem::memset(table, 0, sizeof(command_table));
+        std::memset(table, 0, sizeof(command_table));
 
         u64 vbuf = reinterpret_cast<u64>(buffer);
         u32 remaining_bytes = count * sector_size;
@@ -190,7 +190,7 @@ namespace drivers::ahci {
         header.prd_table_length = i;
 
         const auto command_fis = reinterpret_cast<fis::reg_h2d*>(table->command_fis);
-        mem::memset(command_fis, 0, sizeof(fis::reg_h2d));
+        std::memset(command_fis, 0, sizeof(fis::reg_h2d));
         command_fis->fis_type = static_cast<u8>(fis::type::FIS_TYPE_REG_H2D);
         command_fis->command_control = 1;
         command_fis->command = ATA_CMD_READ_DMA_EX;
@@ -233,7 +233,7 @@ namespace drivers::ahci {
             return false;
 
         const auto table = command_slots[slot].table;
-        mem::memset(table, 0, sizeof(command_table));
+        std::memset(table, 0, sizeof(command_table));
 
         // 8K bytes (16 sectors) per PRDT
         for (int i = 0; i < header.prd_table_length - 1; i++)
@@ -253,7 +253,7 @@ namespace drivers::ahci {
         table->prdt[header.prd_table_length - 1].interrupt_on_complete = true;
 
         const auto command_fis = reinterpret_cast<fis::reg_h2d*>(table->command_fis);
-        mem::memset(command_fis, 0, sizeof(fis::reg_h2d));
+        std::memset(command_fis, 0, sizeof(fis::reg_h2d));
         command_fis->fis_type = static_cast<u8>(fis::type::FIS_TYPE_REG_H2D);
         command_fis->command_control = 1;
         command_fis->command = ATA_CMD_WRITE_DMA_EX;

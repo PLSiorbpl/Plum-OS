@@ -26,7 +26,7 @@ namespace drivers::ahci {
                     return false;
                 }
                 const auto size = remaining < sector_size ? remaining : sector_size;
-                mem::memmove(reinterpret_cast<u8*>(buffer) + (count - remaining), temp, size);
+                std::memmove(reinterpret_cast<u8*>(buffer) + (count - remaining), temp, size);
 
                 remaining -= static_cast<i32>(sector_size);
                 current_sector++;
