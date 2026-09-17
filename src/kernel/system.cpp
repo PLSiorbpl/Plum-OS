@@ -113,6 +113,7 @@ namespace systemPL {
         partition_manager.list_partitions();
         fs::FAT32::fat32_manager fat_manager;
         fat_manager.init(device);
+        //fat_manager.read(1, 0);
 
         log::info("xHCI:\n"); fb.swap();
 

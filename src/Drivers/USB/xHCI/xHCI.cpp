@@ -2,6 +2,7 @@
 
 #include <kernel/Sleep.hpp>
 #include <kernel/Memory/heap.hpp>
+#include <memory.hpp>
 
 #include "xHCI_common.hpp"
 #include "xHCI_mem.hpp"
@@ -177,8 +178,8 @@ namespace USB {
 
                             if (hid.type == xhci_hid_type::Mouse) {
                                 mouse_state.buttons = report[0];
-                                mouse_state.x += static_cast<int8_t>(report[1]);
-                                mouse_state.y += static_cast<int8_t>(report[2]);
+                                mouse_state.x = static_cast<int8_t>(report[1]);
+                                mouse_state.y = static_cast<int8_t>(report[2]);
                                 mouse_state.updated = true;
 
                             } else if (hid.type == xhci_hid_type::Keyboard) {
@@ -238,7 +239,7 @@ namespace USB {
         trb.isp = 1;
         trb.chain = 0;
 
-        ep_ring->enqueue(reinterpret_cast<xhci_trb_t*>(&trb));
+        ep_ring->enqueue(reinterpret_cast<xhci_trb_t *>(&trb));
         m_doorbell_manager->ring_doorbell(hid.slot, hid.dci);
     }
 
@@ -800,9 +801,9 @@ namespace USB {
         _send_command_trb(reinterpret_cast<xhci_trb_t*>(&eval_trb));
     }
 
-    void xhci_driver::_configure_ctrl_ep_input_context(xhci_device* device, const uint16_t max_packet_size) const {
+    void xhci_driver::_configure_ctrl_ep_input_context(const xhci_device* device, const uint16_t max_packet_size) const {
         const size_t ctx_size = XHCI_CSZ(m_cap_regs) ? sizeof(xhci_input_context64) : sizeof(xhci_input_context32);
-        std::memset(device->get_input_ctrl_ctx(), 0, ctx_size);
+        memset(device->get_input_ctrl_ctx(), 0, ctx_size);
 
         auto* input_ctrl = device->get_input_ctrl_ctx();
         auto* slot_ctx = device->get_input_slot_ctx();
@@ -905,10 +906,6 @@ namespace USB {
 
         if (header.bDescriptorType != USB_DESCRIPTOR_CONFIGURATION) {
             log::error("[ xHCI ] got descriptor type %x instead of config for slot %u", header.bDescriptorType, slot_id);
-            log::info("[ xHCI ] config header raw bytes:");
-            uint8_t* raw = reinterpret_cast<uint8_t*>(&header);
-            for (int i = 0; i < 9; i++)
-                log::info("  [%d] = %x", i, raw[i]);
             return -1;
         }
 
@@ -919,7 +916,7 @@ namespace USB {
         }
 
         auto* buf = static_cast<uint8_t*>(heap::malloc(total_length));
-        std::memset(buf, 0, total_length);
+        memset(buf, 0, total_length);
 
         {
             xhci_device_request_packet req = {};
@@ -961,9 +958,9 @@ namespace USB {
         const bool is_in = (request.transfer_direction != 0);
 
         if (length > 0 && !is_in && buffer) {
-            std::memcpy(dma_buffer, buffer, length);
+            memcpy(dma_buffer, buffer, length);
         } else {
-            std::memset(dma_buffer, 0, length > 0 ? length : 1);
+            memset(dma_buffer, 0, length > 0 ? length : 1);
         }
 
         // Setup Stage TRB
@@ -1029,7 +1026,7 @@ namespace USB {
         }
 
         if (buffer && length > 0 && is_in) {
-            std::memcpy(buffer, dma_buffer, length);
+            memcpy(buffer, dma_buffer, length);
         }
 
         return 0;
@@ -1091,7 +1088,7 @@ namespace USB {
         }
 
         auto* ep_ctx = device->get_ep_ctx_by_dci(dci);
-        std::memset(ep_ctx, 0, sizeof(xhci_endpoint_context32));
+        memset(ep_ctx, 0, sizeof(xhci_endpoint_context32));
 
         ep_ctx->endpoint_type = xhci_ep_type;
         ep_ctx->max_packet_size = ep.max_packet_size;

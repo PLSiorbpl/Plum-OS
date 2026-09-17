@@ -1,4 +1,5 @@
 #pragma once
+#include "std/math_types.hpp"
 #include "std/types.hpp"
 
 struct Framebuffer;
@@ -33,6 +34,10 @@ namespace framebuffer {
         void put_char(char c, u32 color);
 
         void scroll(u32 lines = 1);
+        void move_cursor(int x, int y);
+        void set_cursor(int x, int y);
+        glm::ivec2 get_cursor() const { return {cursor_x, cursor_y}; }
+        glm::ivec2 get_terminal_size() const { return {width_in_chars, height_in_chars}; }
 
         [[nodiscard]] i32 get_height_in_chars() const { return height_in_chars; }
         [[nodiscard]] screen_info get_screen_info() const { return {info.base, info.width, info.height, static_cast<u32>(info.size)/info.height}; }

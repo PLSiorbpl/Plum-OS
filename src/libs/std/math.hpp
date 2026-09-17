@@ -55,4 +55,18 @@ namespace std {
             return i + 1;
         return i;
     }
+
+    inline float sqrt(const float x) {
+        if (x < 0) return 0.0f;
+        if (x == 0) return 0.0f;
+
+        float guess = x;
+        float prev_guess;
+
+        for (int i = 0; i < 4; ++i) {
+            prev_guess = guess;
+            guess = 0.5f * (guess + x / guess);
+        }
+        return guess;
+    }
 }

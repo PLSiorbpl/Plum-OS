@@ -38,26 +38,29 @@ namespace MyCraft {
 
                 Generate_terrain(&chunk);
 
-                World::world.push_back(std::move(chunk));
+                World::world.insert({chunk_x, chunk_z}, std::move(chunk));
             }
         }
     }
 
     void RemoveChunks(const glm::ivec2 center, const int radius) {
-        for (int i = 0; i < World::world.size();) {
-            const auto &chunk = World::world[i];
-            const int Chunk_X = chunk.chunk_x;
-            const int Chunk_Z = chunk.chunk_z;
+        for (auto & [h, key, chunk] : World::world)
+        for (size_t i = 0; i < World::world.size();) {
+            //const auto &chunk = World::world[i];
+            //const int Chunk_X = chunkchunk_x;
+            //const int Chunk_Z = chunkchunk_z;
 
-            const int dX = Chunk_X - center.x;
-            const int dZ = Chunk_Z - center.y;
+            const int dX = key.x - center.x;
+            const int dZ = key.y - center.y;
 
             const int dist = std::max(std::abs(dX), std::abs(dZ));
 
             if (dist > radius+1) {
-                World::world[i].mesh.clear();
-                World::world[i] = std::move(World::world.back());
-                World::world.pop_back();
+                World::world.find(key)->mesh.release();
+                World::world.erase(key);
+                //World::world[i].mesh.clear();
+                //World::world[i] = std::move(World::world.back());
+                //World::world.pop_back();
             } else {
                 i++;
             }

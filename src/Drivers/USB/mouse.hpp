@@ -9,5 +9,5 @@ namespace USB {
         bool updated = false;
     };
 
-    usb_mouse_state mouse_state;
+    extern usb_mouse_state mouse_state;
 }

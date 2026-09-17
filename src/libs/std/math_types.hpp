@@ -294,26 +294,79 @@ namespace glm {
         }
     };
 
-    struct mat4 {
-        float m[4][4] = {};
+    struct mat4x4 {
+        vec4 col[4] = {};
 
-        mat4() = default;
-        mat4(const float a, const float b, const float c, const float d,
-             const float a1, const float b1, const float c1, const float d1,
-             const float a2, const float b2, const float c2, const float d2,
-             const float a3, const float b3, const float c3, const float d3) {
-            m[0][0] = a; m[0][1] = b; m[0][2] = c; m[0][3] = d;
-            m[1][0] = a1; m[1][1] = b1; m[1][2] = c1; m[1][3] = d1;
-            m[2][0] = a2; m[2][1] = b2; m[2][2] = c2; m[2][3] = d2;
-            m[3][0] = a3; m[3][1] = b3; m[3][2] = c3; m[3][3] = d3;
-        }
-        explicit mat4(const float a) {
-            m[0][0] = a; m[0][1] = a; m[0][2] = a; m[0][3] = a;
-            m[1][0] = a; m[1][1] = a; m[1][2] = a; m[1][3] = a;
-            m[2][0] = a; m[2][1] = a; m[2][2] = a; m[2][3] = a;
-            m[3][0] = a; m[3][1] = a; m[3][2] = a; m[3][3] = a;
+        mat4x4() {
+            col[0] = {1.0f, 0.0f, 0.0f, 0.0f};
+            col[1] = {0.0f, 1.0f, 0.0f, 0.0f};
+            col[2] = {0.0f, 0.0f, 1.0f, 0.0f};
+            col[3] = {0.0f, 0.0f, 0.0f, 1.0f};
         }
 
-        
+        explicit mat4x4(float val) {
+            col[0]={val,0,0,0};
+            col[1]={0,val,0,0};
+            col[2]={0,0,val,0};
+            col[3]={0,0,0,val};
+        }
+
+        mat4x4(const vec4 c0, const vec4 c1, const vec4 c2, const vec4 c3)
+            : col{c0, c1, c2, c3} {}
+
+        mat4x4(const vec3 v1, const vec3 v2, const vec3 v3, const vec4 v4) {
+            col[0] = {v1.x, v1.y, v1.z, 0.0f};
+            col[1] = {v2.x, v2.y, v2.z, 0.0f};
+            col[2] = {v3.x, v3.y, v3.z, 0.0f};
+            col[3] = {v4.x, v4.y, v4.z, v4.w};
+        }
+
+        vec4& operator[](const int col_idx) { return col[col_idx]; }
+        const vec4& operator[](const int col_idx) const { return col[col_idx]; }
+
+        float& operator()(const int row, const int col_idx) { return col[col_idx][row]; }
+        float operator()(const int row, const int col_idx) const { return col[col_idx][row]; }
+
+        mat4x4 operator*(const mat4x4& m) const {
+            mat4x4 res;
+            for (int i = 0; i < 4; i++) { // Column
+                for (int j = 0; j < 4; j++) { // Row
+                    res.col[i][j] =
+                        col[0][j] * m.col[i][0] +
+                        col[1][j] * m.col[i][1] +
+                        col[2][j] * m.col[i][2] +
+                        col[3][j] * m.col[i][3];
+                }
+            }
+            return res;
+        }
+
+        friend vec4 operator*(const mat4x4& m, const vec4& v) {
+            return vec4(
+                m.col[0][0] * v.x + m.col[1][0] * v.y + m.col[2][0] * v.z + m.col[3][0] * v.w,
+                m.col[0][1] * v.x + m.col[1][1] * v.y + m.col[2][1] * v.z + m.col[3][1] * v.w,
+                m.col[0][2] * v.x + m.col[1][2] * v.y + m.col[2][2] * v.z + m.col[3][2] * v.w,
+                m.col[0][3] * v.x + m.col[1][3] * v.y + m.col[2][3] * v.z + m.col[3][3] * v.w
+            );
+        }
+
+        friend vec4 operator*(const vec4& v, const mat4x4& m) {
+            return vec4(
+                v.x * m.col[0][0] + v.y * m.col[1][0] + v.z * m.col[2][0] + v.w * m.col[3][0],
+                v.x * m.col[0][1] + v.y * m.col[1][1] + v.z * m.col[2][1] + v.w * m.col[3][1],
+                v.x * m.col[0][2] + v.y * m.col[1][2] + v.z * m.col[2][2] + v.w * m.col[3][2],
+                v.x * m.col[0][3] + v.y * m.col[1][3] + v.z * m.col[2][3] + v.w * m.col[3][3]
+            );
+        }
+
+        [[nodiscard]] mat4x4 transpose() const {
+            mat4x4 res;
+            for (int i = 0; i < 4; i++) {
+                for (int j = 0; j < 4; j++) {
+                    res.col[i][j] = col[j][i];
+                }
+            }
+            return res;
+        }
     };
 }

@@ -1,10 +1,9 @@
 #include "xHCI_device.hpp"
 #include "std/types.hpp"
 #include "xHCI_mem.hpp"
-#include "std/mem_common.hpp"
+#include <memory.hpp>
 #include "kernel/Paging.hpp"
 #include "xHCI_rings.hpp"
-#include "kernel/log.h"
 #include "kernel/Memory/mem_helper.h"
 
 namespace USB {
@@ -68,11 +67,11 @@ namespace USB {
         if (m_use64byte_ctx) {
             auto* input_ctx = static_cast<xhci_input_context64*>(m_input_ctx);
             xhci_device_context64* input_device_ctx = &input_ctx->device_context;
-            std::memcpy(input_device_ctx, reinterpret_cast<u64 *>(to_virtual(out_ctx)), sizeof(xhci_device_context64));
+            memcpy(input_device_ctx, reinterpret_cast<u64 *>(to_virtual(out_ctx)), sizeof(xhci_device_context64));
         } else {
             auto* input_ctx = static_cast<xhci_input_context32*>(m_input_ctx);
             xhci_device_context32* input_device_ctx = &input_ctx->device_context;
-            std::memcpy(input_device_ctx,  reinterpret_cast<u64 *>(to_virtual(out_ctx)), sizeof(xhci_device_context32));
+            memcpy(input_device_ctx,  reinterpret_cast<u64 *>(to_virtual(out_ctx)), sizeof(xhci_device_context32));
         }
     }
 

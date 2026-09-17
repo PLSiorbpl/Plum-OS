@@ -5,7 +5,7 @@
 #include "kernel/log.h"
 #include "kernel/Memory/mem_helper.h"
 #include "std/math.hpp"
-#include "std/mem_common.hpp"
+#include <memory.hpp>
 
 namespace drivers::ahci {
     i8 ahci_port::get_command_slot() const {
@@ -119,8 +119,8 @@ namespace drivers::ahci {
 
     bool ahci_port::identify(const u16* buffer) {
         clear_interrupt_errors();
-        const auto slot = get_command_slot();
-        if (slot == -1)
+        const u32 slot = static_cast<u8>(get_command_slot());
+        if (slot == static_cast<u32>(-1))
             return false;
 
         auto& header = command_list[slot];
@@ -131,14 +131,14 @@ namespace drivers::ahci {
         header.clear = true;
 
         const auto table = command_slots[slot].table;
-        std::memset(table, 0, sizeof(command_table));
+        memset(table, 0, sizeof(command_table));
         table->prdt[0].data_base_address = static_cast<u32>(to_physical(reinterpret_cast<u64>(buffer)));
         table->prdt[0].data_base_address_upper = bits_is_64 ? static_cast<u32>(to_physical(reinterpret_cast<u64>(buffer)) >> 32) : 0;
         table->prdt[0].data_byte_count = 512 - 1;
         table->prdt[0].interrupt_on_complete = true;
 
         const auto command_fis = reinterpret_cast<fis::reg_h2d*>(table->command_fis);
-        std::memset(command_fis, 0, sizeof(fis::reg_h2d));
+        memset(command_fis, 0, sizeof(fis::reg_h2d));
         command_fis->fis_type = static_cast<u8>(fis::type::FIS_TYPE_REG_H2D);
         command_fis->command_control = 1;
         command_fis->command = ATA_CMD_IDENTIFY;
@@ -149,14 +149,13 @@ namespace drivers::ahci {
     bool ahci_port::read(const u64 start, u32 count, u16* buffer, const u16 sector_size) {
         clear_interrupt_errors();
 
-        const auto slot = get_command_slot();
-        if (slot == -1)
+        const u32 slot = static_cast<u8>(get_command_slot());
+        if (slot == static_cast<u32>(-1))
             return false;
 
         const u32 start_lo = static_cast<u32>(start);
         const u32 start_hi = static_cast<u32>(start >> 32);
         const u32 original_count = count;
-        const u32 sectors_per_prdt = (8 * 1024) / sector_size;
 
         auto& header = command_list[slot];
         header.fis_length = sizeof(fis::reg_h2d) / sizeof(uint32_t);
@@ -165,7 +164,7 @@ namespace drivers::ahci {
         header.clear = true;
 
         const auto table = command_slots[slot].table;
-        std::memset(table, 0, sizeof(command_table));
+        memset(table, 0, sizeof(command_table));
 
         u64 vbuf = reinterpret_cast<u64>(buffer);
         u32 remaining_bytes = count * sector_size;
@@ -190,7 +189,7 @@ namespace drivers::ahci {
         header.prd_table_length = i;
 
         const auto command_fis = reinterpret_cast<fis::reg_h2d*>(table->command_fis);
-        std::memset(command_fis, 0, sizeof(fis::reg_h2d));
+        memset(command_fis, 0, sizeof(fis::reg_h2d));
         command_fis->fis_type = static_cast<u8>(fis::type::FIS_TYPE_REG_H2D);
         command_fis->command_control = 1;
         command_fis->command = ATA_CMD_READ_DMA_EX;
@@ -213,8 +212,8 @@ namespace drivers::ahci {
     bool ahci_port::write(const u64 start, u32 count, const u16* buffer, const u16 sector_size) {
         clear_interrupt_errors();
 
-        const auto slot = get_command_slot();
-        if (slot == -1)
+        const u32 slot = static_cast<u8>(get_command_slot());
+        if (slot == static_cast<u32>(-1))
             return false;
 
         const u32 start_lo = static_cast<u32>(start);
@@ -233,7 +232,7 @@ namespace drivers::ahci {
             return false;
 
         const auto table = command_slots[slot].table;
-        std::memset(table, 0, sizeof(command_table));
+        memset(table, 0, sizeof(command_table));
 
         // 8K bytes (16 sectors) per PRDT
         for (int i = 0; i < header.prd_table_length - 1; i++)
@@ -253,7 +252,7 @@ namespace drivers::ahci {
         table->prdt[header.prd_table_length - 1].interrupt_on_complete = true;
 
         const auto command_fis = reinterpret_cast<fis::reg_h2d*>(table->command_fis);
-        std::memset(command_fis, 0, sizeof(fis::reg_h2d));
+        memset(command_fis, 0, sizeof(fis::reg_h2d));
         command_fis->fis_type = static_cast<u8>(fis::type::FIS_TYPE_REG_H2D);
         command_fis->command_control = 1;
         command_fis->command = ATA_CMD_WRITE_DMA_EX;

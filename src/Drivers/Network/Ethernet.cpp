@@ -4,8 +4,9 @@
 #include "ARP/ARP.hpp"
 #include "kernel/log.h"
 #include "std/types.hpp"
-#include "std/mem_common.hpp"
+#include <memory.hpp>
 #include "IPv4/IPv4.hpp"
+#include "kernel/Memory/heap.hpp"
 
 namespace NET {
     void receive_ethernet(Net_Device *dev, const uint8_t *frame, const uint16_t len) {
@@ -39,17 +40,21 @@ namespace NET {
             log::error("[ NET ] payload too big to send: %x", len);
             return;
         }
-        uint8_t frame[sizeof(EthernetHeader) + 1500];
+        if (payload == nullptr) {
+            log::error("[ NET ] payload is nullptr");
+            return;
+        }
 
+        auto *frame = static_cast<uint8_t *>(heap::malloc(sizeof(EthernetHeader) + len));
         auto* hdr = reinterpret_cast<EthernetHeader *>(frame);
 
-        std::memcpy(hdr->dst_mac, dst_mac, 6);
-        std::memcpy(hdr->src_mac, dev->get_mac(), 6);
-
+        memcpy(hdr->dst_mac, dst_mac, 6);
+        memcpy(hdr->src_mac, dev->get_mac(), 6);
         hdr->ethertype = ethertype;
 
-        std::memcpy(frame+sizeof(EthernetHeader), payload, len);
+        memcpy(frame + sizeof(EthernetHeader), payload, len);
 
         dev->send(frame, len + sizeof(EthernetHeader));
+        heap::free(frame);
     }
 }

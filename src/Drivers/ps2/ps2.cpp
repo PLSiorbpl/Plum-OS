@@ -1,7 +1,7 @@
 #include "ps2.h"
 
 #include <asm-generic/errno-base.h>
-
+#include <memory.hpp>
 #include "arch/x86_64/Common/Common.hpp"
 #include "arch/x86_64/IDT/IDT.hpp"
 #include "Drivers/Keyboard.hpp"
@@ -200,7 +200,7 @@ namespace drivers::ps2 {
     status_register read_status() {
         status_register status {};
         const auto raw = x64::inb(INPUT_PORT);
-        std::memcpy(&status, &raw, sizeof(status));
+        memcpy(&status, &raw, sizeof(status));
         return status;
     }
 
@@ -209,13 +209,13 @@ namespace drivers::ps2 {
         wait_for_read();
         config_register config = {};
         const auto raw = x64::inb(OUTPUT_PORT);
-        std::memcpy(&config, &raw, sizeof(config));
+        memcpy(&config, &raw, sizeof(config));
         return config;
     }
 
     void write_config(config_register config) {
         u8 config_bits = 0;
-        std::memmove(&config_bits, &config, sizeof(config));
+        memmove(&config_bits, &config, sizeof(config));
         x64::outb(INPUT_PORT, 0x60);
         x64::outb(DATA_PORT, config_bits);
         wait_for_command_completion();

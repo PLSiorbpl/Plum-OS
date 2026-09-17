@@ -6,6 +6,7 @@ namespace NET {
     constexpr uint16_t IPv4_Ether_Type = 0x0800;
     constexpr uint16_t IPv4_Protocol_ICMP = 1;
     constexpr uint16_t IPv4_Protocol_UDP = 17;
+    constexpr uint16_t IPv4_Protocol_TCP = 6;
 
     uint16_t Bswap_16(uint16_t x);
 
@@ -17,6 +18,7 @@ namespace NET {
     void ipv4_to_str(uint32_t ip, char *out, bool reverse = false);
 
     uint16_t checksum(const void* data, int len);
+    uint16_t ipv4_checksum(uint32_t src_ip, uint32_t dst_ip, uint16_t protocol, const void* data, int len);
 
     struct EthernetHeader {
         uint8_t dst_mac[6];
@@ -43,13 +45,13 @@ namespace NET {
     // ----------------------------------------------
     // IPv4
     struct IPv4Header {
-        uint8_t  ihl_version;
-        uint8_t  tos;
-        uint16_t total_length;
-        uint16_t id;
+        uint8_t  ihl_version; // Ipv4 version & lenght
+        uint8_t  tos; // Type of service
+        uint16_t total_length; // IP + UDP + data
+        uint16_t id; // fragmentation
         uint16_t flags_frag;
-        uint8_t  ttl;
-        uint8_t  protocol;
+        uint8_t  ttl; // time to live
+        uint8_t  protocol; // ICMP UDP TCP IPv6
         uint16_t checksum;
         uint32_t src_ip;
         uint32_t dst_ip;
@@ -69,4 +71,40 @@ namespace NET {
         uint16_t length;
         uint16_t checksum;
     } __attribute__((packed));
+
+    struct ipv4_PseudoHeader {
+        uint32_t src_ip;
+        uint32_t dst_ip;
+
+        uint8_t zero;
+        uint8_t protocol;
+
+        uint16_t len;
+    } __attribute__((packed));
+
+    struct TCP_Header {
+        uint16_t src_port;
+        uint16_t dst_port;
+
+        uint32_t seq;
+        uint32_t ack;
+
+        uint8_t data_offset;
+        uint8_t flags;
+
+        uint16_t window;
+        uint16_t checksum;
+        uint16_t urgent;
+    } __attribute__((packed));
+    static_assert(sizeof(TCP_Header) == 20);
+
+    enum class tcp_flags : uint8_t {
+        FIN = 1,
+        SYN = 2,
+        RST = 4,
+        PSH = 8,
+        ACK = 16,
+        URG = 32,
+
+    };
 }

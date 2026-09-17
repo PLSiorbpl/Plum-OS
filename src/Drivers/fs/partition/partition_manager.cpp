@@ -1,5 +1,5 @@
 #include "partition_manager.h"
-
+#include <memory.hpp>
 #include "kernel/log.h"
 
 namespace fs::partition {
@@ -59,19 +59,12 @@ namespace fs::partition {
 
         for (u32 i = 0; i < header->partition_entry_count; i++) {
             const auto* entry = reinterpret_cast<gpt_partition*>(reinterpret_cast<u8*>(partitions_buf) + i * header->partition_entry_size);
-            if (std::memcmp(entry->type_guid, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) == true)
+            if (memcmp(entry->type_guid, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) == true)
                 continue;
             if (entry->starting_lba == 0)
                 continue;
             if (entry->name[0] == 0)
                 continue;
-
-            char name_buf[37] = {};
-            for (int j = 0; j < 36; j++) {
-                u16 wc = entry->name[j];
-                if (wc == 0) break;
-                name_buf[j] = static_cast<char>(wc & 0xFF);
-            }
 
             partitions.push_back(*entry);
         }
@@ -86,7 +79,7 @@ namespace fs::partition {
 
         for (u32 i = 0; i < partitions.size(); i++) {
             auto partition = &partitions[i];
-            if (std::memcmp(partition->type_guid, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) == true)
+            if (memcmp(partition->type_guid, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) == true)
                 continue;
             if (partition->starting_lba == 0)
                 continue;
@@ -110,7 +103,7 @@ namespace fs::partition {
         if (id >= partitions.size())
             return false;
         auto tmp = &partitions[id];
-        if (std::memcmp(tmp->type_guid, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) == true)
+        if (memcmp(tmp->type_guid, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16) == true)
             return false;
         if (tmp->starting_lba == 0)
             return false;
@@ -121,7 +114,7 @@ namespace fs::partition {
     }
 
     bool partition_manager::validate_gpt() const {
-        if (std::memcmp(&header->signature, "EFI PART", 8) == false) {
+        if (memcmp(&header->signature, "EFI PART", 8) == false) {
             log::warn("[ GPT ] Failed to find signature bytes for GPT partition.");
             return false;
         }

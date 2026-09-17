@@ -1,18 +1,18 @@
+#include "kernel.h"
 #include "arch/x86_64/syscall/syscall.h"
 #include "libs/std/types.hpp"
-#include "libs/std/mem_common.hpp"
 #include "std/printf.hpp"
 #include "kernel/system.hpp"
 #include "kernel/Sleep.hpp"
 #include "kernel/Memory/heap.hpp"
 #include "Drivers/Keyboard.hpp"
-#include "Drivers/PCI.hpp"
-#include "Drivers/vga.h"
 #include "std/string.h"
 #include "kernel/linker_info.hpp"
 #include "User_Programs/Chess/main.hpp"
 #include "User_Programs/MyCraft/main.hpp"
-#include "Drivers/Network/socket.hpp"
+#include "Drivers/Network/Sockets/socket.hpp"
+#include "Drivers/Network/Sockets/tcp_socket.hpp"
+#include "Drivers/Network/Common.hpp"
 
 struct Command {
     const char *name;
@@ -26,18 +26,99 @@ inline uint64_t range(void *a, void *b) {
 
 void list_commands(int argc, char** argv);
 
-Command commands[14] = {
+Command commands[] = {
     {
+        "http", [](int argc, char** argv) {
+            int server_num = tsock::socket();
+            auto server = tsock::find_socket(server_num);
+
+            server->bind(8080);
+            server->listen();
+
+            std::printf("HTTP server listening on port 8080\r\n");
+            std::printf("Waiting for client...\r\n");
+
+            while (true) {
+                tsock::tcp_socket* client = nullptr;
+
+                while (!client)
+                    client = server->accept();
+
+                std::printf("New HTTP client!\r\n");
+
+                char request[2048] = {};
+                const size_t received = client->recv(request, sizeof(request) - 1);
+
+                if (received > 0) {
+                    request[received] = '\0';
+
+                    std::printf("Request:\r\n%s\r\n", std::Output::std_out, request);
+
+                    const char response[] =
+                        "HTTP/1.1 200 OK\r\n"
+                        "Content-Type: text/html; charset=UTF-8\r\n"
+                        "Content-Length: 72\r\n"
+                        "Connection: close\r\n"
+                        "\r\n"
+                        "<html><body><h1>Hello from Plum-OS!</h1></body></html>\r\n";
+
+                    client->send(response, sizeof(response) - 1);
+                }
+
+                client->close();
+            }
+
+            server->close();
+        }
+    },
+    {
+        "tcp", [](int argc, char** argv) {
+            int server_num = tsock::socket();
+            auto server = tsock::find_socket(server_num);
+
+            server->bind(8080);
+            server->listen();
+
+            sys_sleep(1000);
+
+            tsock::tcp_socket *client = nullptr;
+            std::printf("Waiting for client...");
+
+            while (!client) {
+                client = server->accept();
+            }
+
+            std::move_cursor(0, -1);
+            std::printf("New client connected!");
+
+            if (client) {
+                const char msg[] = "Hello from Plum-OS!\r\n";
+                client->send(msg, sizeof(msg) - 1);
+                client->send(msg, sizeof(msg) - 1);
+            }
+
+            client->close();
+            server->close();
+        }
+    },{
         "udp", [](int argc, char** argv) {
-            int sock = soc::socket();
+            const int sock = soc::socket();
             if (sock == -1) return;
 
             soc::bind(sock, 25565);
-            soc::udp_recv_packet rec = {};
-            if (sys_socket(sock, &rec, 10000)) {
-                std::printf("\t&audp: %s\n", std::Output::std_out, rec.data);
-                heap::free(rec.data);
-            }
+            //soc::udp_recv_packet rec = {};
+            //if (sys_socket(sock, &rec, false, 10000)) {
+            //    std::printf("\t&audp: %s\n", std::Output::std_out, rec.data);
+            //    heap::free(rec.data);
+            //}
+            const char message[] = "hello";
+
+            soc::udp_send_packet send {};
+            send.data = (uint8_t*)message;
+            send.size = sizeof(message)-1;
+            send.to_ip = NET::make_ipv4(10, 0, 0, 1);
+            send.to_port = 25565;
+            sys_socket(sock, &send, true, 0);
         }
     }, {
         "clear", [](int argc, char** argv) {
@@ -55,19 +136,7 @@ Command commands[14] = {
         "mycraft", [](int argc, char** argv) {
             MyCraft::main(argc, argv);
         }
-    },{
-        "poweroff", [](int argc, char** argv) {
-            std::printf("&c\tShutting down in 5s (press ENTER to cancel!)\n");
-            if (!Time::WaitForKey(5000, kb::key_code::KEY_ENTER)) {
-                asm volatile("outw %0, %1" : : "a"(static_cast<uint16_t>(0x2000)), "Nd"(static_cast<uint16_t>(0x604)));
-                // QEMU only
-                std::printf("&4Unable to shut down try shutting down manually\n");
-            } else {
-                std::printf("&a\tShutdown Canceled!\n");
-            }
-        }
-    },
-    {
+    }, {
         "sleep", [](int argc, char** argv) {
             uint64_t wait = 1;
             uint8_t unit = true; // ms, s
@@ -107,8 +176,7 @@ Command commands[14] = {
                 time = wait;
             sys_sleep(time);
         }
-    },
-    {
+    }, {
         "heap", [](int argc, char** argv) {
             bool show_all = false;
             if (argc > 0) {
@@ -129,13 +197,11 @@ Command commands[14] = {
             }
             sys_heap_dump(show_all);
         }
-    },
-    {
+    }, {
         "pci", [](int argc, char** argv) {
             sys_pci_test();
         }
-    },
-    {
+    }, {
         "size", [](int argc, char** argv) {
             auto kernel_size = range(&Linker::__kernel_start, &Linker::__kernel_end);
             auto text_size = range(&Linker::__kernel_text_start, &Linker::__kernel_text_end);
@@ -158,27 +224,19 @@ Command commands[14] = {
             std::printf("&e\tTotal kernel &7size: &a%u%s\n", std::Output::std_out, kernel_size,
                         std::format_size(kernel_size));
         }
-    },
-    {
+    }, {
         "usb", [](int argc, char** argv) {
             sys_usb();
         }
-    },
-    {
+    }, {
         "colors", [](int argc, char** argv) {
-            std::printf(
-                "&0 &&00 &1 &&11 &2 &&22 &3 &&33 &4 &&44 &5 &&55 &6 &&66 &7 &&77 &8 &&88 &9 &&99 &a &&aa &b &&bb &c &&cc &d &&dd &e &&ee &f &&ff\n");
+            std::printf("&0 &&00 &1 &&11 &2 &&22 &3 &&33 &4 &&44 &5 &&55 &6 &&66 &7 &&77 &8 &&88 &9 &&99 &a &&aa &b &&bb &c &&cc &d &&dd &e &&ee &f &&ff\n");
         }
-    },
-    {
+    }, {
         "partitions", [](int argc, char** argv) {
             sys_list_parts();
         }
     },
-};
-
-struct TextCommand {
-    char buffer[256];
 };
 
 void list_commands(int argc, char** argv) {
@@ -189,13 +247,10 @@ void list_commands(int argc, char** argv) {
     std::printf("\n");
 }
 
-std::Ring_Buffer<TextCommand, 64> previous_commands;
-
 extern "C" void user_space_main() {
     std::printf("\n&aPrintf(%/i %/u %/s %/x %/c %/l %/f) &c%i %u %s %x %c %l %f\n", std::Output::std_out, -6767, 6767, "LOL",
                 0x00006677, 'j', 0x7FFFFFFFFFFFFFFF, 3.146767);
     std::printf("&f------------ &bPlum OS 64bit &f------------\n\n");
-    std::printf("&aHello from user space!\n");
 
     list_commands(0, nullptr);
 
@@ -203,106 +258,88 @@ extern "C" void user_space_main() {
 
     static char buffer[256];
     static int i = 0;
+
     while (true) {
         sys_swap_framebuffer();
         const kb::key_code key = sys_get_key();
-        const char key_char = kb::to_char(key);
+
+        if (key == kb::key_code::KEY_NULL)
+            continue;
 
         if (key == kb::key_code::KEY_BACKSPACE) {
-            if (i == 0)
-                continue;
+            if (i <= 0) continue;
+            if (buffer[i-1] == '\t') {
+                std::print("\b\b\b\b");
+            }
             std::put_char('\b');
+            buffer[i-1] = '\0';
             i--;
-            buffer[i] = '\0';
-            continue;
-        }
-
-        if (key == kb::key_code::KEY_ENTER) {
+        } else if (key == kb::key_code::KEY_ENTER) {
             buffer[i] = '\0';
             std::put_char('\n');
 
-            // Get Command Name from buffer
-            char command_name[256] = {0};
-            int k = 0;
-            int j = 0;
-
-            while (buffer[k] != '\0' && buffer[k] == ' ')
-                k++;
-
-            while (buffer[k] != '\0' && buffer[k] != ' ' && j < 255) {
-                command_name[j++] = buffer[k++];
-            }
-
-            command_name[j] = '\0';
-
-            // Get arguments from buffer
-            char* args[32];
-            int argc = 0;
-            k = 0;
-
-            while (buffer[k] != '\0') {
-                while (buffer[k] == ' ') k++;
-
-                if (buffer[k] == '\0') break;
-
-                args[argc++] = &buffer[k];
-
-                while (buffer[k] != '\0' && buffer[k] != ' ')
-                    k++;
-            }
-
-            k = 0;
-            while (buffer[k] != '\0') {
-                if (buffer[k] != ' ') {
-                    k++;
-                } else {
-                    buffer[k] = '\0';
-                    k++;
-                    while (buffer[k] == ' ') k++;
-                }
-            }
-
-            bool found_command = false;
-            for (auto &[name, func] : commands) {
-                if (std::str_cmp(command_name, name)) {
-                    func(argc, args);
-                    found_command = true;
-                    break;
-                }
-            }
-            if (!found_command) {
-                std::printf("&7\tUnknown command: &c%s \n", std::Output::std_out, buffer);
-                sys_sleep(250); // i like that delay :)
-            }
-
-            TextCommand command {};
-            std::memmove(command.buffer, buffer, 256);
-            previous_commands.push(command);
+            run_program(buffer);
 
             std::printf("&fPlum-OS> ");
             i = 0;
-            continue;
+        } else {
+            if (kb::to_char(key) == 0) continue;
+            if (i >= 256) continue;
+            buffer[i] = kb::to_char(key);
+            std::put_char(kb::to_char(key));
+            i++;
         }
+    }
+}
 
-        if (key == kb::key_code::KEY_UP) {
-            TextCommand command {};
-            previous_commands.pop(command);
-            std::memmove(buffer, command.buffer, 256);
-            std::print(buffer);
-        }
+void run_program(char* buffer) {
+    // Get command name from buffer
+    char command_name[256] = {0};
+    int k = 0; int j = 0;
 
-        if (key_char == 0) {
-            continue;
-        }
+    while (buffer[k] != '\0' && buffer[k] == ' ') k++;
 
-        if  (i >= 255) {
-            continue;
-        }
+    while (buffer[k] != '\0' && buffer[k] != ' ' && j < 255)
+        command_name[j++] = buffer[k++];
 
-        std::put_char(kb::to_char(key));
-        buffer[i++] = key_char;
-        if (key == kb::key_code::KEY_TAB) {
-            i += drivers::vga::TAB_SIZE - 1;
+    command_name[j] = '\0';
+
+    // Get arguments from buffer
+    char* args[32]; int argc = 0;
+    k = 0;
+
+    while (buffer[k] != '\0') {
+        while (buffer[k] == ' ') k++;
+        if (buffer[k] == '\0') break;
+
+        args[argc++] = &buffer[k];
+
+        while (buffer[k] != '\0' && buffer[k] != ' ')
+            k++;
+    }
+
+    k = 0;
+    while (buffer[k] != '\0') {
+        if (buffer[k] != ' ') {
+            k++;
+        } else {
+            buffer[k] = '\0';
+            k++;
+            while (buffer[k] == ' ') k++;
         }
+    }
+
+    bool found_command = false;
+    for (auto &[name, func] : commands) {
+        if (std::str_cmp(command_name, name)) {
+            func(argc, args);
+            found_command = true;
+            break;
+        }
+    }
+
+    if (!found_command) {
+        std::printf("&7\tUnknown command: &c%s \n", std::Output::std_out, buffer);
+        sys_sleep(250);
     }
 }

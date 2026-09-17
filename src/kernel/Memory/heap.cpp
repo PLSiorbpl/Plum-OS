@@ -22,7 +22,7 @@ namespace heap {
     }
 
     // Block allocator
-    extern "C" void* malloc(uint64_t size) {
+    void* malloc(uint64_t size) {
         size = (size + 15) & ~15ULL;
         for (Block* block = heap_head; block; block = block->next) {
             if (block->free && block->size >= size) {

@@ -2,7 +2,8 @@
 #include "Drivers/Keyboard.hpp"
 #include "std/types.hpp"
 #include "Drivers/GPU/OpenPL/OpenPL.hpp"
-#include "Drivers/Network/socket.hpp"
+#include "Drivers/Network/IPv4/TCP.hpp"
+#include "Drivers/Network/Sockets/tcp_socket.hpp"
 
 enum class syscall_id : u64 {
     write = 0,
@@ -19,16 +20,37 @@ enum class syscall_id : u64 {
     USB = 20,
     OpenPL = 21,
     socket = 22,
+    tcp_socket = 23,
 };
 
-inline u64 syscall(u64 id, u64 a1 = 0, u64 a2 = 0, u64 a3 = 0) {
+struct syscall_regs {
+    u64 id; // rax
+    u64 arg1; // rdi
+    u64 arg2; // rsi
+    u64 arg3; // rdx
+    u64 arg4; // r10
+    u64 arg5; // r8
+    u64 arg6; // r9
+};
+
+inline u64 syscall(u64 id, u64 a1 = 0, u64 a2 = 0, u64 a3 = 0, u64 a4 = 0, u64 a5 = 0, u64 a6 = 0) {
+    register u64 r10 asm("r10") = a4;
+    register u64 r8  asm("r8")  = a5;
+    register u64 r9  asm("r9")  = a6;
+
     u64 ret;
-    asm volatile(
-        "syscall"
+    asm volatile("syscall"
         : "=a"(ret)
-        : "a"(id), "D"(a1), "S"(a2), "d"(a3)
+        : "a"(id),
+          "D"(a1),
+          "S"(a2),
+          "d"(a3),
+          "r"(r10),
+          "r"(r8),
+          "r"(r9)
         : "rcx", "r11", "memory"
     );
+
     return ret;
 }
 
@@ -84,6 +106,12 @@ inline void sys_openPL(OpenPL::Context *ctx, const uint32_t Operation) {
     syscall(21, reinterpret_cast<u64>(ctx), Operation);
 }
 
-inline bool sys_socket(int socket, soc::udp_recv_packet *recv, int timeout = 0) {
-    return syscall(22, static_cast<u64>(socket), reinterpret_cast<u64>(recv), static_cast<u64>(timeout));
+// 0 - receive   1 - send
+inline bool sys_socket(int socket, void *recv, bool dir, int timeout = 0) {
+    return syscall(22, static_cast<u64>(socket), reinterpret_cast<u64>(recv), (u64)dir, static_cast<u64>(timeout));
+}
+
+// 0 - receive   1 - send
+inline bool sys_tcp_socket(tsock::tcp_syscall *buf, bool dir, int timeout = 0) {
+    return syscall(23, reinterpret_cast<u64>(buf), dir, static_cast<u64>(timeout));
 }

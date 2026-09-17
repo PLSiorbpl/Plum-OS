@@ -1,6 +1,6 @@
 #include "xHCI_mem.hpp"
 
-#include <std/mem_common.hpp>
+#include <memory.hpp>
 
 #include "kernel/log.h"
 #include "kernel/Memory/heap.hpp"
@@ -32,7 +32,7 @@ namespace USB {
             log::error("======= MEMORY ALLOCATION FAILED =======\n");
         }
 
-        std::memset(memblock, 0, size);
+        memset(memblock, 0, size);
         return memblock;
     }
 

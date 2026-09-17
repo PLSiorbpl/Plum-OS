@@ -33,14 +33,14 @@ namespace soc {
 
     extern std::vector<Socket> sockets;
 
-    Socket *find_socket(int soc);
+    Socket *find_socket(int sock);
     Socket *find_socket_port(uint16_t port);
 
     int socket();
     void bind(int sock, uint16_t port);
     void connect(int sock, uint32_t ip, uint16_t port);
-    bool send(int sock, const void *data, size_t len);
-    bool sendto(int sock, udp_send_packet *data);
+    bool send(int sock, const udp_send_packet &data);
+    bool sendto(int sock, const udp_send_packet &data);
     bool recv(int sock, udp_recv_packet &data, int timeout = 0);
     bool recvfrom(int sock, udp_recv_packet &data, uint32_t ip, uint16_t port, int timeout = 0);
 

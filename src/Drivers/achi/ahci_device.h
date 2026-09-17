@@ -1,4 +1,5 @@
 #pragma once
+#include <memory.hpp>
 #include "ahci_helper.h"
 #include "ahci_port.h"
 
@@ -25,8 +26,8 @@ namespace drivers::ahci {
                     heap::free_align(temp);
                     return false;
                 }
-                const auto size = remaining < sector_size ? remaining : sector_size;
-                std::memmove(reinterpret_cast<u8*>(buffer) + (count - remaining), temp, size);
+                const auto size = remaining < static_cast<i32>(sector_size) ? remaining : sector_size;
+                memmove(reinterpret_cast<u8*>(buffer) + (count - remaining), temp, size);
 
                 remaining -= static_cast<i32>(sector_size);
                 current_sector++;

@@ -29,6 +29,7 @@ target_include_directories(Kernel PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/src_boot"
         "${CMAKE_CURRENT_SOURCE_DIR}/src"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/libs"
+		"${CMAKE_CURRENT_SOURCE_DIR}/src/libs/libc"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/Drivers/acpi"
         ${UACPI_INCLUDES}
 )
@@ -162,7 +163,7 @@ set(QEMU_FLAGS
         #-d trace:usb_xhci_*
         #-d usb,guest_errors,int
         #-trace usb_xhci_*
-        -s
+        #-s
 )
 
 add_custom_target(run

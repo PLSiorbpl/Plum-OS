@@ -8,8 +8,8 @@ namespace fs::FAT32 {
         if (fat_partitions.empty())
             return;
 
-        for (int i = 0; i < fat_partitions.size(); i++) {
-            heap::free_align(&fat_partitions[i]);
+        for (auto & fat_partition : fat_partitions) {
+            heap::free_align(&fat_partition);
         }
     }
 
@@ -22,8 +22,8 @@ namespace fs::FAT32 {
         device = &dev;
         part_manager.init(*device);
 
-        for (int i = 0; i < part_manager.get_partition_count(); i++) {
-            auto fat = static_cast<fat_info *>(heap::malloc_align(sizeof(fat_info), 0x1000));
+        for (size_t i = 0; i < part_manager.get_partition_count(); i++) {
+            const auto fat = static_cast<fat_info *>(heap::malloc_align(sizeof(fat_info), 0x1000));
 
             // Get parition candidate
             if (!part_manager.get_partition(i, fat->gpt_partition)) {
@@ -35,11 +35,11 @@ namespace fs::FAT32 {
             // Read its BPB
             if (!device->read_bytes(fat->gpt_partition.starting_lba, sizeof(BPB), reinterpret_cast<u16 *>(&fat->bpb))) {
                 heap::free_align(fat);
-                log::warn("[ FAT32 ] Failed to read BPB: lba=%l size=%u", (uint64_t)fat->gpt_partition.starting_lba, sizeof(BPB));
+                log::warn("[ FAT32 ] Failed to read BPB: lba=%l size=%u", static_cast<uint64_t>(fat->gpt_partition.starting_lba), sizeof(BPB));
                 continue;
             }
 
-            uint32_t data_start = fat->gpt_partition.starting_lba + fat->bpb.rsvd_sector_count + fat->bpb.num_of_FATs * fat->bpb.ebpb.sectors_per_FAT;
+            const uint32_t data_start = fat->gpt_partition.starting_lba + fat->bpb.rsvd_sector_count + fat->bpb.num_of_FATs * fat->bpb.ebpb.sectors_per_FAT;
             fat->data_start = data_start;
 
             // Validate FAT32
@@ -55,7 +55,7 @@ namespace fs::FAT32 {
 
                 char volume_string[12];
                 for (int s = 0; s < 11; s++) {
-                    volume_string[s] = fat->bpb.ebpb.volume_label_string[s];
+                    volume_string[s] = static_cast<char>(fat->bpb.ebpb.volume_label_string[s]);
                 }
                 volume_string[11] = '\0';
 
@@ -93,7 +93,7 @@ namespace fs::FAT32 {
 
         char long_name[255] = {};
         const auto *entry = buffer;
-        for (int i = 0; i < cluster_size/sizeof(file_entry); i++) {
+        for (size_t i = 0; i < cluster_size/sizeof(file_entry); i++) {
 
             char short_name[12];
             for (int n = 0; n < 11; n++) {

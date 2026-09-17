@@ -36,7 +36,7 @@ namespace IDT {
         }
     }
 
-    static bool extended = false;
+    //static bool extended = false;
 
     isr_t custom_handlers[256][4] = {{nullptr}};
     uint8_t custom_handlers_count[256] = {0};

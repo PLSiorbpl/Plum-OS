@@ -1,7 +1,7 @@
 #include "vga.h"
 
 #include "cursor.h"
-#include "std/mem_common.hpp"
+#include <memory.hpp>
 #include "arch/x86_64/Common/Common.hpp"
 
 namespace drivers::vga {
@@ -10,8 +10,8 @@ namespace drivers::vga {
     void scroll() {
         const bool old_flag = x64::get_INT_flag();
         x64::set_INT_flag(false);
-        std::memmove(video, video + 80, 24 * 80 * 2);
-        std::memset16(&video[(VGA_HEIGHT-1) * VGA_WIDTH], (static_cast<uint16_t>(Color::LightGray) << 8) | ' ', VGA_WIDTH);
+        memmove(video, video + 80, 24 * 80 * 2);
+        memset16(&video[(VGA_HEIGHT-1) * VGA_WIDTH], (static_cast<uint16_t>(Color::LightGray) << 8) | ' ', VGA_WIDTH);
         x64::set_INT_flag(old_flag);
     }
 
@@ -64,7 +64,7 @@ namespace drivers::vga {
     }
 
     void clear(Color color) {
-        std::memset16(video, (static_cast<uint8_t>(color) << 8) | ' ', VGA_WIDTH * VGA_HEIGHT);
+        memset16(video, (static_cast<uint8_t>(color) << 8) | ' ', VGA_WIDTH * VGA_HEIGHT);
         cursor::cursor_x = 0;
         cursor::cursor_y = 0;
     }

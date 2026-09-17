@@ -1,7 +1,7 @@
 #pragma once
 #include "ahci_port.h"
 #include "kernel/Memory/heap.hpp"
-#include "std/mem_common.hpp"
+#include <memory.hpp>
 #include "std/types.hpp"
 #include "std/printf.hpp"
 
@@ -9,7 +9,7 @@ namespace drivers::ahci {
     inline void* allocate_virtual_memory(u64 size, u64 alignment) {
         const auto out = heap::malloc_align(size, alignment);
         //Paging::Map_memory(reinterpret_cast<u64>(out), reinterpret_cast<u64>(out) + size, Paging::Profile::MMIO);
-        std::memset(out, 0, size);
+        memset(out, 0, size);
         return out;
     }
 

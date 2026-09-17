@@ -1,17 +1,18 @@
 #include "socket.hpp"
 
-#include "kernel/log.h"
+#include "../Drivers/RTL8139.hpp"
 #include "kernel/Sleep.hpp"
-#include "std/types.hpp"
 #include "std/vector.hpp"
 #include "std/printf.hpp"
+#include "Drivers/Network/IPv4/UDP.hpp"
+#include "kernel/log.h"
 
 namespace soc {
     std::vector<Socket> sockets;
 
-    Socket *find_socket(const int soc) {
+    Socket *find_socket(const int sock) {
         for (auto &s : sockets) {
-            if (s.num == soc)
+            if (s.num == sock)
                 return &s;
         }
         return nullptr;
@@ -42,6 +43,7 @@ namespace soc {
         if (s != nullptr) {
             s->local_port = port;
         }
+        std::printf("[ soc ] No socket: %i", std::Output::std_out, sock);
     }
 
     void connect(const int sock, const uint32_t ip, const uint16_t port) {
@@ -50,14 +52,27 @@ namespace soc {
             s->remote_ip = ip;
             s->remote_port = port;
         }
+        std::printf("[ soc ] No socket: %i", std::Output::std_out, sock);
     }
 
-    bool send(int sock, const void *data, size_t len) {
-
+    bool send(const int sock, const udp_send_packet &data) {
+        const auto s = find_socket(sock);
+        if (s != nullptr) {
+            NET::send_udp(&RTL8139::driver, s->remote_ip, s->remote_port, s->local_port, data.data, data.size);
+            return true;
+        }
+        log::warn("[ soc ] No socket: %i", sock);
+        return false;
     }
 
-    bool sendto(int sock, const void *data, size_t len, uint32_t ip, uint16_t port) {
-
+    bool sendto(const int sock, const udp_send_packet &data) {
+        const auto s = find_socket(sock);
+        if (s != nullptr) {
+            NET::send_udp(&RTL8139::driver, data.to_ip, data.to_port, s->local_port, data.data, data.size);
+            return true;
+        }
+        log::warn("[ soc ] No socket: %i", sock);
+        return false;
     }
 
     bool recv(const int sock, udp_recv_packet &data, int timeout) {
@@ -78,8 +93,7 @@ namespace soc {
             data = src;
             return true;
         }
-
-        std::printf("no socket: %i", std::Output::std_out, sock);
+        std::printf("[ soc ] No socket: %i", std::Output::std_out, sock);
         return false;
     }
 
@@ -104,7 +118,7 @@ namespace soc {
             return false;
         }
 
-        std::printf("no socket: %i", std::Output::std_out, sock);
+        std::printf("[ soc ] No socket: %i", std::Output::std_out, sock);
         return false;
     }
 }

@@ -6,7 +6,7 @@
 #include "kernel/Sleep.hpp"
 #include "kernel/Memory/heap.hpp"
 #include "kernel/Memory/mem_helper.h"
-#include "std/mem_common.hpp"
+#include <memory.hpp>
 #include "Drivers/Network/Ethernet.hpp"
 
 namespace RTL8139 {
@@ -176,7 +176,7 @@ namespace RTL8139 {
             return false;
         }
 
-        std::memcpy(tx_buffers[tx_slot], data, length);
+        memcpy(tx_buffers[tx_slot], data, length);
 
         const auto phys_tx = to_physical(tx_buffers[tx_slot]);
 

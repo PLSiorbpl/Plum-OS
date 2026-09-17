@@ -1,5 +1,5 @@
 #include "OpenPL.hpp"
-#include "std/mem_common.hpp"
+#include <memory.hpp>
 #include "Drivers/GPU/framebuffer.hpp"
 #include "kernel/system.hpp"
 #include "std/math.hpp"
@@ -31,10 +31,10 @@ namespace OpenPL {
         const uint32_t h = framebuffer.height;
         const float depth = pipeline.far_plane;
         uint32_t bits;
-        std::memcpy(&bits, &depth, sizeof(depth));
+        memcpy(&bits, &depth, sizeof(depth));
 
-        std::memset32(fb, Color, h*w);
-        std::memset32(reinterpret_cast<uint32_t *>(db), bits, h*w);
+        memset32(fb, Color, h*w);
+        memset32(reinterpret_cast<uint32_t *>(db), bits, h*w);
     }
 
     bool Context::set_vertex_attr_type(const uint8_t attribute, const AttributeType type) {
@@ -86,7 +86,7 @@ namespace OpenPL {
             Shader::VS_ShaderIn in = {};
             Shader::VS_ShaderOut out = {};
 
-            for (int i = start; i < start+num_of_vert; i++) {
+            for (size_t i = start; i < start+num_of_vert; i++) {
 
                 uint8_t *adr = vertex_Buffer + (i * vbo_stride);
 
@@ -118,14 +118,14 @@ namespace OpenPL {
         Shader::FS_ShaderOut fs_out = {};
 
         if (primitive == PrimitiveType::TRIANGLES) {
-            for (int i = 0; i < vertex_cache.size(); i += 3) {
+            for (size_t i = 0; i < vertex_cache.size(); i += 3) {
                 const auto& p1 = vertex_cache[i];
                 const auto& p2 = vertex_cache[i+1];
                 const auto& p3 = vertex_cache[i+2];
 
-                const auto p1_NDC = p1.position * glm::vec3(p1.inv_w);
-                const auto p2_NDC = p2.position * glm::vec3(p2.inv_w);
-                const auto p3_NDC = p3.position * glm::vec3(p3.inv_w);
+                const auto p1_NDC = p1.position / glm::vec4(p1.position.w);
+                const auto p2_NDC = p2.position / glm::vec4(p2.position.w);
+                const auto p3_NDC = p3.position / glm::vec4(p3.position.w);
 
                 const glm::vec2 p1_screen = {((p1_NDC.x * 0.5f + 0.5f) * w_float), ((1.0f - (p1_NDC.y * 0.5f + 0.5f)) * h_float)};
                 const glm::vec2 p2_screen = {((p2_NDC.x * 0.5f + 0.5f) * w_float), ((1.0f - (p2_NDC.y * 0.5f + 0.5f)) * h_float)};
@@ -145,7 +145,7 @@ namespace OpenPL {
 
                 const float invArea = 1.0f / area;
                 const float near_plane = pipeline.near_plane;
-                const float far_plane = pipeline.far_plane;
+                //const float far_plane = pipeline.far_plane;
                 if (p1.position.z <= near_plane || p2.position.z <= near_plane || p3.position.z <= near_plane)
                     continue;
 

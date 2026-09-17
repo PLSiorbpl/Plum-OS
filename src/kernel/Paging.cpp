@@ -1,9 +1,9 @@
 #include "Paging.hpp"
 
 #include "Memory/heap.hpp"
-#include "../libs/std/types.hpp"
+#include "std/types.hpp"
 #include "Memory/mem_helper.h"
-#include "std/mem_common.hpp"
+#include <memory.hpp>
 
 extern u64 kernel_address_vert;
 extern u64 kernel_address_phys;
@@ -18,7 +18,7 @@ namespace Paging {
 
     uint64_t alloc_page() {
         const auto virt = reinterpret_cast<uint64_t>(heap::malloc_align(4096, 4096));
-        std::memset(reinterpret_cast<void*>(virt), 0, 4096);
+        memset(reinterpret_cast<void*>(virt), 0, 4096);
         return virt - hhdm_offset;
     }
 

@@ -66,8 +66,6 @@ namespace USB {
                     new_ep.dci             = (new_ep.number * 2) + (new_ep.is_in ? 1 : 0);
 
                     current_iface->endpoints.push_back(new_ep);
-
-                    static const char* ep_type_str[] = {"Control", "Isochronous", "Bulk", "Interrupt"};
                     break;
                 }
 

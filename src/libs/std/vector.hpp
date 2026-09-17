@@ -7,12 +7,12 @@ namespace std {
     template<typename T>
     struct vector {
         T *m_data = nullptr;
-        uint64_t m_size = 0;
-        uint64_t m_capacity = 0;
+        size_t m_size = 0;
+        size_t m_capacity = 0;
 
         vector() = default;
         ~vector() {
-            for (uint64_t i = 0; i < m_size; i++)
+            for (size_t i = 0; i < m_size; i++)
                 m_data[i].~T();
             heap::free(m_data);
             m_capacity = 0;
@@ -28,7 +28,7 @@ namespace std {
 
         vector& operator=(vector&& other) noexcept {
             if (this != &other) {
-                for (uint64_t i = 0; i < m_size; i++)
+                for (size_t i = 0; i < m_size; i++)
                     m_data[i].~T();
                 heap::free(m_data);
 
@@ -46,11 +46,11 @@ namespace std {
         vector& operator=(const vector&) = delete;
 
         // Helpers
-        [[nodiscard]] uint64_t capacity() const {
+        [[nodiscard]] size_t capacity() const {
             return m_capacity;
         }
 
-        [[nodiscard]] uint64_t size() const {
+        [[nodiscard]] size_t size() const {
             return m_size;
         }
 
@@ -67,15 +67,27 @@ namespace std {
         }
 
         void clear() {
-            for (uint64_t i = 0; i < m_size; i++)
+            for (size_t i = 0; i < m_size; i++)
                 m_data[i].~T();
             m_size = 0;
         }
 
-        void erase(size_t index) {
+        void erase(const size_t index) {
+            m_data[index].~T();
             for (size_t i = index; i < m_size - 1; i++)
-                m_data[i] = m_data[i + 1];
+                m_data[i] = std::move(m_data[i + 1]);
             m_size--;
+        }
+
+        void swap_remove(size_t index) {
+            if (index == size() - 1) {
+                pop_back();
+                return;
+            }
+
+            m_data[index].~T();
+            m_data[index] = std::move(back());
+            pop_back();
         }
 
         void shrink_to_fit() {
@@ -100,13 +112,13 @@ namespace std {
             m_capacity = 0;
         }
 
-        void reserve(const uint64_t new_size) {
+        void reserve(const size_t new_size) {
             if (new_size <= m_capacity) return;
 
             T *old_data = m_data;
             m_data = static_cast<T*>(heap::malloc(sizeof(T) * new_size));
 
-            for (uint64_t i = 0; i < m_size; i++) {
+            for (size_t i = 0; i < m_size; i++) {
                 new (&m_data[i]) T(std::move(old_data[i]));
                 old_data[i].~T();
             }

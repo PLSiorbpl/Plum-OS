@@ -8,10 +8,20 @@
 #include "kernel/Paging.hpp"
 #include "kernel/Memory/heap.hpp"
 #include "kernel/Memory/mem_helper.h"
-#include "std/mem_common.hpp"
+#include <memory.hpp>
 
 namespace framebuffer {
     constexpr i32 BACKGROUND_COLOR = 0x0F0F0F;
+
+    void framebuffer::move_cursor(int x, int y) {
+        cursor_x += x;
+        cursor_y += y;
+    }
+
+    void framebuffer::set_cursor(int x, int y) {
+        cursor_x = x;
+        cursor_y = y;
+    }
 
     void framebuffer::init(framebuffer_info framebuffer) {
         if (!framebuffer.base)
@@ -37,14 +47,14 @@ namespace framebuffer {
     void framebuffer::swap() {
         if (!initialized || !is_dirty)
             return;
-        std::memcpy(front_buffer, back_buffer, info.size);
+        memcpy(front_buffer, back_buffer, info.size);
         is_dirty = false;
     }
 
     void framebuffer::clear(const u32 color) {
         const bool old_flag = x64::get_INT_flag();
         x64::set_INT_flag(false);
-        std::memset32(back_buffer, color, info.height * info.pixels_in_scanline);
+        memset32(back_buffer, color, info.height * info.pixels_in_scanline);
         x64::set_INT_flag(old_flag);
         is_dirty = true;
     }
@@ -124,8 +134,8 @@ namespace framebuffer {
 
         const uint32_t pitch = info.pixels_in_scanline;
 
-        std::memcpy(back_buffer,back_buffer + scroll_px * pitch,(info.height - scroll_px) * pitch * sizeof(u32));
-        std::memset32(back_buffer + (info.height - scroll_px) * pitch,BACKGROUND_COLOR,scroll_px * pitch);
+        memcpy(back_buffer,back_buffer + scroll_px * pitch,(info.height - scroll_px) * pitch * sizeof(u32));
+        memset32(back_buffer + (info.height - scroll_px) * pitch,BACKGROUND_COLOR,scroll_px * pitch);
 
         is_dirty = true;
         x64::set_INT_flag(old_flag);

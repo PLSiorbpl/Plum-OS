@@ -31,7 +31,7 @@ namespace Chess {
         p.y = y2;
         p.z = z2 + 18.0f;
 
-        out->position = p;
+        out->position = glm::vec4(p, p.z);
         out->inv_w = 1.0f / p.z;
 
         out->varyings[0] = out->inv_w;

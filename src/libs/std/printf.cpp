@@ -279,4 +279,17 @@ namespace std {
                 break;
         }
     }
+
+    void move_cursor(const int offset_x, const int offset_y) {
+        systemPL::fb.move_cursor(offset_x, offset_y);
+    }
+    void set_cursor(const int x, const int y) {
+        systemPL::fb.set_cursor(x, y);
+    }
+    glm::ivec2 get_cursor() {
+        return systemPL::fb.get_cursor();
+    }
+    glm::ivec2 get_terminal_size() {
+        return systemPL::fb.get_terminal_size();
+    }
 }

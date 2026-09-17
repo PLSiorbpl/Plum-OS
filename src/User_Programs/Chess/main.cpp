@@ -145,7 +145,7 @@ namespace Chess {
         ctx.set_vertex_attr_type(1, AttributeType::ATTR_VEC3);
 
         uniforms uni = {0.0f, 0.0f};
-        int color;
+        int color = 0;
         frames = 0;
         last_tick = Time::tick;
 

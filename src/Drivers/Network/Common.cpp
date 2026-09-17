@@ -1,4 +1,7 @@
 #include "Common.hpp"
+
+#include "memory.hpp"
+#include "kernel/Memory/heap.hpp"
 #include "std/types.hpp"
 
 namespace NET {
@@ -69,5 +72,26 @@ namespace NET {
         }
 
         return static_cast<uint16_t>(~sum);
+    }
+
+    uint16_t ipv4_checksum(const uint32_t src_ip, const uint32_t dst_ip, const uint16_t protocol, const void *data, const int len) {
+        const uint16_t checksum_size = sizeof(ipv4_PseudoHeader) + len;
+        auto* checksum_buffer = static_cast<uint8_t *>(heap::malloc(checksum_size));
+        auto* pseudo = reinterpret_cast<ipv4_PseudoHeader *>(checksum_buffer);
+
+        pseudo->src_ip = Bswap_32(src_ip);
+        pseudo->dst_ip = Bswap_32(dst_ip);
+        pseudo->zero = 0;
+        pseudo->protocol = protocol;
+        pseudo->len = Bswap_16(len);
+
+        memcpy(checksum_buffer + sizeof(ipv4_PseudoHeader), data, len);
+        uint16_t ret = checksum(checksum_buffer, checksum_size);
+        heap::free(checksum_buffer);
+
+        if (ret == 0)
+            ret = 0xFFFF;
+
+        return ret;
     }
 }

@@ -105,7 +105,7 @@ namespace hpet {
 
         auto n = cap.num_timers;
         log::info("[ HPET ] Initializing %u timers...", n + 1);
-        for (auto i = 0; i <= n; i++) {
+        for (size_t i = 0; i <= n; i++) {
             timers[i].init(i);
         }
 

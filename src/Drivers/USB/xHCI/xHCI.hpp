@@ -125,7 +125,7 @@ namespace USB {
         void _disable_slot(uint8_t slot_id);
 
         static uint16_t _initial_max_packet_size(uint8_t speed);
-        void _configure_ctrl_ep_input_context(xhci_device* device, uint16_t max_packet_size) const;
+        void _configure_ctrl_ep_input_context(const xhci_device* device, uint16_t max_packet_size) const;
 
         void _address_device(const xhci_device* device, bool bsr);
 
