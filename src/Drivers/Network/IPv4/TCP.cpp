@@ -23,7 +23,7 @@ namespace NET {
         const uint32_t payload_size = Bswap_16(ip->total_length) - ip_header_len - tcp_header_len;
 
         if (auto s = tsock::find_socket_connection(dst_port, Bswap_32(ip->src_ip), src_port)) {
-            if (payload_size > 0 && payload_size < 2049) {
+            if (payload_size > 0 && payload_size < 8197) {
                 tsock::cdata d = {};
                 d.data = heap::malloc(payload_size);
                 d.size = payload_size;
@@ -34,9 +34,35 @@ namespace NET {
                 return;
             }
 
+            if (tcp->flags & (uint8_t)tcp_flags::FIN) {
+                s->recv_seq++;
+
+                send_tcp(dev, s, (u8)tcp_flags::ACK, nullptr, 0);
+
+                if (s->state == tsock::tcp_state::FIN_WAIT_2) {
+                    s->state = tsock::tcp_state::TIME_WAIT;
+                }
+                else if (s->state == tsock::tcp_state::FIN_WAIT_1) {
+                    if ((tcp->flags & (u8)tcp_flags::ACK) &&
+                        ack == s->send_seq) {
+                        s->state = tsock::tcp_state::TIME_WAIT;
+                        } else {
+                            s->state = tsock::tcp_state::CLOSING;
+                        }
+                }
+                else if (s->state == tsock::tcp_state::ESTABLISHED) {
+                    s->state = tsock::tcp_state::CLOSE_WAIT;
+                }
+            }
+
+            if (tcp->flags & (uint8_t)tcp_flags::ACK) {
+                if (s->state == tsock::tcp_state::FIN_WAIT_1)
+                    s->state = tsock::tcp_state::FIN_WAIT_2;
+            }
+
             if (tcp->flags & (u8)tcp_flags::SYN) {
                 if (s->state == tsock::tcp_state::SYN_RECEIVED) {
-                    log::info("SYN retransmit %u", tsock::sockets.size());
+                    //log::info("SYN retransmit %u", tsock::sockets.size());
                     s->recv_seq = seq + 1;
                     s->send_seq = 1000;
                     send_tcp(dev, s, (u8)tcp_flags::SYN | (u8)tcp_flags::ACK, nullptr, 0); // ACK + SYN
@@ -52,7 +78,7 @@ namespace NET {
                     auto listener = tsock::find_socket_listner(dst_port);
                     if (listener)
                         listener->pending.push_back(s);
-                    log::info("Yes it works ");
+                    //log::info("Yes it works ");
                 }
             }
             return;
@@ -62,7 +88,7 @@ namespace NET {
             auto sock = tsock::find_socket_listner(dst_port);
 
             if (sock && sock->state == tsock::tcp_state::LISTEN) {
-                log::info("New SYN %u", tsock::sockets.size());
+                //log::info("New SYN %u", tsock::sockets.size());
                 int ss = tsock::socket();
                 auto s = tsock::find_socket(ss);
                 s->local_port = dst_port;

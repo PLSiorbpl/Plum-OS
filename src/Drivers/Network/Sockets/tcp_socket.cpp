@@ -31,8 +31,8 @@ namespace tsock {
     }
 
     size_t tcp_socket::send(const void *data, size_t len) {
-        tcp_syscall sys = {this, (u8)NET::tcp_flags::ACK | (u8)NET::tcp_flags::PSH, (uint8_t *)data, len};
-        int ret = sys_tcp_socket(&sys, 1, 0);
+        tcp_syscall sys = {this, static_cast<u8>(NET::tcp_flags::ACK) | static_cast<u8>(NET::tcp_flags::PSH), (uint8_t *)data, len};
+        const int ret = sys_tcp_socket(&sys, true, 0);
         send_seq += len;
         return ret;
     }
@@ -54,18 +54,36 @@ namespace tsock {
     void tcp_socket::close() {
         if (state == tcp_state::CLOSED)
             return;
-        state = tcp_state::CLOSED;
 
-        for (auto &i : pending) {
-            i->close();
+        if (state == tcp_state::LISTEN) {
+            state = tcp_state::CLOSED;
+            for (auto &i : pending) {
+                i->close();
+            }
+            remove_socket(num);
+            return;
         }
 
+        if (state == tcp_state::ESTABLISHED) {
+            tcp_syscall sys = {this, static_cast<u8>(NET::tcp_flags::FIN) | static_cast<u8>(NET::tcp_flags::ACK), nullptr, 0};
+            sys_tcp_socket(&sys, true, 0);
+
+            send_seq++;
+            state = tcp_state::FIN_WAIT_1;
+            return;
+        }
+
+        remove_socket(num);
+    }
+
+    bool remove_socket(const int sock) {
         for (int i = 0; i < sockets.size(); i++) {
-            if (sockets[i].get() == this) {
+            if (sockets[i]->num == sock) {
                 sockets.swap_remove(i);
-                break;
+                return true;
             }
         }
+        return false;
     }
 
     tcp_socket *find_socket(const int sock) {

@@ -6,6 +6,7 @@
 #include "Drivers/Network/Net_Device.hpp"
 #include "Drivers/Network/IPv4/ICMP.hpp"
 #include "TCP.hpp"
+#include "Drivers/Network/ARP/ARP.hpp"
 #include "kernel/log.h"
 
 namespace NET {
@@ -63,7 +64,13 @@ namespace NET {
 
         // -------------------------------------
         // Ethernet
-        const uint8_t dst_mac[6] = {0x86, 0x61, 0xde, 0x8e, 0x80, 0x53};
+        const uint8_t *dst_mac = arp_lookup(dev, Bswap_32(ip->dst_ip));
+        if (!dst_mac) {
+            char buf[16];
+            ipv4_to_str(Bswap_32(ip->dst_ip), buf);
+            log::info("Cant find that ip: %s", buf);
+            return;
+        }
 
         send_ethernet(dev, dst_mac, Bswap_16(IPv4_Ether_Type), ip, ip_size);
     }

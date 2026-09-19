@@ -60,6 +60,7 @@ namespace tsock {
         size_t size;
     };
 
+    bool remove_socket(int sock);
     tcp_socket *find_socket(int sock);
     tcp_socket *find_socket_listner(uint16_t local_port);
     tcp_socket *find_socket_connection(uint16_t local_port, uint32_t remote_ip, uint16_t remote_port);

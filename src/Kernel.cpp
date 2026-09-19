@@ -35,16 +35,21 @@ Command commands[] = {
             server->bind(8080);
             server->listen();
 
-            std::printf("HTTP server listening on port 8080\r\n");
-            std::printf("Waiting for client...\r\n");
+            std::printf("HTTP server listening on port 8080\n");
+            std::printf("Waiting for client...\n");
 
             while (true) {
+                sys_swap_framebuffer();
                 tsock::tcp_socket* client = nullptr;
 
-                while (!client)
-                    client = server->accept();
+                while (!client) {
+                    auto key = sys_get_key(false);
+                    if (key == kb::key_code::KEY_ESC) { if (client) client->close(); server->close(); return; }
 
-                std::printf("New HTTP client!\r\n");
+                    client = server->accept();
+                }
+
+                std::printf("New HTTP client!\n");
 
                 char request[2048] = {};
                 const size_t received = client->recv(request, sizeof(request) - 1);
@@ -52,16 +57,32 @@ Command commands[] = {
                 if (received > 0) {
                     request[received] = '\0';
 
-                    std::printf("Request:\r\n%s\r\n", std::Output::std_out, request);
+                    std::printf("Request:\n%s\n", std::Output::std_out, request);
 
                     const char response[] =
                         "HTTP/1.1 200 OK\r\n"
                         "Content-Type: text/html; charset=UTF-8\r\n"
-                        "Content-Length: 72\r\n"
                         "Connection: close\r\n"
                         "\r\n"
-                        "<html><body><h1>Hello from Plum-OS!</h1></body></html>\r\n";
-
+                        R"HTML(
+                        <html>
+                            <head>
+                                <title>Plum-OS 64bit</title>
+                                <style>
+                                    body {
+                                        background:#0b0b10; color:#ddd;
+                                        font:16px Arial; text-align:center; padding:50px
+                                    }
+                                    h1 { color:#b46cff }
+                                </style>
+                            </head>
+                            <body>
+                                <h1>Plum-OS</h1>
+                                <p>64bit UEFI kernel made in C++</p>
+                                <p>HTTP server running!</p>
+                            </body>
+                        </html>
+                        )HTML";
                     client->send(response, sizeof(response) - 1);
                 }
 
