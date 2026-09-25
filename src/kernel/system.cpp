@@ -1,6 +1,7 @@
 #include "system.hpp"
 
 #include "acpi.h"
+#include "kernel.h"
 #include "limine.h"
 #include "linker_info.hpp"
 #include "log.h"
@@ -22,6 +23,7 @@
 #include "Drivers/hpet/hpet.h"
 #include "uacpi/uacpi.h"
 #include "Drivers/fs/FAT32/fat32.hpp"
+#include "kernel/Process/Process_manager.hpp"
 
 extern u64 kernel_address_vert;
 extern u64 kernel_address_phys;
@@ -122,6 +124,10 @@ namespace systemPL {
 
         fb.swap();
 
-        enter_user_space();
+        enter_user_space(); // set up syscalls calling and STAR ...
+        proc::create_thread(user_space_main);
+        proc::enter_ring3(proc::Threads[0]);
+
+        log::info("yes");
     }
 }

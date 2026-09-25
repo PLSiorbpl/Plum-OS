@@ -2,6 +2,7 @@
 #include "std/types.hpp"
 #include "std/math_types.hpp"
 #include "std/vector.hpp"
+#include "Drivers/types.h"
 
 namespace OpenPL {
     enum class AttributeType {
@@ -113,6 +114,8 @@ namespace OpenPL {
 
     class Context {
     public:
+        Framebuffer create_framebuffer(uint32_t width, uint32_t height, int bpp = 32);
+
         bool bind_vertex_buffer(uint8_t *buffer, uint64_t size);
         bool set_vertex_attr_type(uint8_t idx, AttributeType type);
         bool set_uniform_ptr(uint8_t *ptr);

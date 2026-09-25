@@ -13,6 +13,7 @@
 #include "Drivers/Network/Sockets/socket.hpp"
 #include "Drivers/Network/Sockets/tcp_socket.hpp"
 #include "Drivers/Network/Common.hpp"
+#include "kernel/Process/Process_manager.hpp"
 
 struct Command {
     const char *name;
@@ -268,7 +269,12 @@ void list_commands(int argc, char** argv) {
     std::printf("\n");
 }
 
+static OpenPL::Context ctx;
+
 extern "C" void user_space_main() {
+    OpenPL::Framebuffer framebuffer = ctx.create_framebuffer(0, 0);
+    ctx.bind_framebuffer(framebuffer);
+
     std::printf("\n&aPrintf(%/i %/u %/s %/x %/c %/l %/f) &c%i %u %s %x %c %l %f\n", std::Output::std_out, -6767, 6767, "LOL",
                 0x00006677, 'j', 0x7FFFFFFFFFFFFFFF, 3.146767);
     std::printf("&f------------ &bPlum OS 64bit &f------------\n\n");
@@ -276,6 +282,8 @@ extern "C" void user_space_main() {
     list_commands(0, nullptr);
 
     std::printf("&fPlum-OS> ");
+    //sys_openPL(&ctx, GL_SWAP);
+    //while (true) {}
 
     static char buffer[256];
     static int i = 0;

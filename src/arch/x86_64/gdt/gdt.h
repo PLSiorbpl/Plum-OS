@@ -36,3 +36,4 @@ void init_tss();
 
 extern gdtd gdt_descriptor;
 extern uint64_t gdt[];
+extern tss_entry tss;

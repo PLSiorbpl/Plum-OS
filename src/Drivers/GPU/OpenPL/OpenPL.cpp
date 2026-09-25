@@ -1,5 +1,6 @@
 #include "OpenPL.hpp"
 #include <memory.hpp>
+
 #include "Drivers/GPU/framebuffer.hpp"
 #include "kernel/system.hpp"
 #include "std/math.hpp"
@@ -8,6 +9,29 @@ namespace OpenPL {
     bool Context::bind_pipeline(const Pipeline p) {
         pipeline = p;
         return true;
+    }
+
+    Framebuffer Context::create_framebuffer(uint32_t width, uint32_t height, int bpp) {
+        Framebuffer fr = {};
+
+        if (width == 0 || height == 0) {
+            auto screen = systemPL::fb.get_screen_info();
+            width = screen.width;
+            height = screen.height;
+        }
+
+        fr.bpp = bpp;
+        fr.width = width;
+        fr.height = height;
+        auto *raw_framebuffer = static_cast<uint32_t *>(heap::malloc(width * height * (fr.bpp/8)));
+        auto *raw_depthbuffer = static_cast<float *>(heap::malloc(width * height * sizeof(float)));
+        if (raw_framebuffer == nullptr || raw_depthbuffer == nullptr) {
+            heap::free(raw_framebuffer);
+            heap::free(raw_depthbuffer);
+        }
+        fr.framebuffer = raw_framebuffer;
+        fr.depthbuffer = raw_depthbuffer;
+        return fr;
     }
 
     bool Context::bind_vertex_buffer(uint8_t *buffer, const uint64_t size) {

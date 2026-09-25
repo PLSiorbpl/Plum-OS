@@ -71,23 +71,23 @@ isr%1:
 %endrep
 
 isr_common_stub:
-    pushall
+    pushall             ; GP registers
 
     mov rdi, rsp        ; frame pointer for isr_common — before any alignment changes
     mov rbp, rsp        ; save for restoration
-    and rsp, -16        ; align
+    ;and rsp, -16        ; align
 
     ; FXSAVE needs 512 bytes, 16-byte aligned
-    sub rsp, 512
-    fxsave [rsp]
+    ;sub rsp, 512
+    ;fxsave [rsp]
 
     extern isr_common
     call isr_common
 
-    fxrstor [rsp]
-    add rsp, 512
+    ;fxrstor [rsp]
+    ;add rsp, 512
 
-    mov rsp, rbp
+    mov rsp, rax
     popall
     add rsp, 16
     iretq

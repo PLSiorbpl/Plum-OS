@@ -4,6 +4,7 @@
 #include "kernel/log.h"
 #include "kernel/Sleep.hpp"
 #include "kernel/system.hpp"
+#include "kernel/Process/Process_manager.hpp"
 #include "APIC.hpp"
 
 namespace IDT {
@@ -80,9 +81,13 @@ namespace IDT {
     }
 
     // NOTE do not add [[noreturn]] to this function
-    extern "C" void isr_common(const ISR_Registers* regs) {
+    extern "C" uint64_t isr_common(ISR_Registers* regs) {
+        uint64_t ret = (uint64_t)regs;
         if (regs->int_no <= 31) {
-            log::error("%s &c%x\n&4Caused by RIP: &e%x", get_exception_name(regs->int_no), regs->error_code, regs->rip);
+            uint64_t error_code = regs->error_code;
+            uint64_t rip = regs->rip;
+
+            log::error("%s &c%x\n&4Caused by RIP: &e%x", get_exception_name(regs->int_no), error_code, rip);
             u64 cr2;
             asm volatile("mov %%cr2, %0" : "=r"(cr2));
             log::error("CR2: %x", cr2);
@@ -101,6 +106,9 @@ namespace IDT {
         // Handlers here
         if (regs->int_no == 32) { // Timer
             Time::tick++;
+
+            if (Time::tick % 3 == 0)
+                ret = proc::schedule(regs);
         }
 
         if (regs->int_no >= 32) {
@@ -108,5 +116,7 @@ namespace IDT {
             if (PIC_enabled)
                 x64::pic_send_eoi(regs->int_no - 32);
         }
+
+        return ret;
     }
 }

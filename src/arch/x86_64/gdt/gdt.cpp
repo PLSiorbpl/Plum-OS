@@ -13,10 +13,6 @@ constexpr uint64_t gdt_entry(const uint32_t base, const uint32_t limit, const ui
         (static_cast<uint64_t>(base >> 24) << 56);
 }
 
-tss_entry tss = {
-    .rsp0 = reinterpret_cast<u64>(&Linker::stack_top),
-};
-
 __attribute__((aligned(8)))
 uint64_t gdt[] = {
     0,
@@ -36,6 +32,10 @@ uint64_t gdt[] = {
 gdtd gdt_descriptor = {
     .limit = sizeof(gdt) - 1,
     .base = reinterpret_cast<uint64_t>(&gdt),
+};
+
+tss_entry tss = {
+    .rsp0 = reinterpret_cast<u64>(&Linker::stack_top),
 };
 
 void init_tss() {

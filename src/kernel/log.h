@@ -1,5 +1,5 @@
 #pragma once
-#include "../libs/std/printf.hpp"
+#include "std/printf.hpp"
 #include "std/string.h"
 
 namespace log {
