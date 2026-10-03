@@ -125,9 +125,8 @@ namespace systemPL {
         fb.swap();
 
         enter_user_space(); // set up syscalls calling and STAR ...
-        proc::create_thread(user_space_main);
+        proc::create_thread(nullptr, 0);
+        proc::create_thread(user_space_main, 3);
         proc::enter_ring3(proc::Threads[0]);
-
-        log::info("yes");
     }
 }

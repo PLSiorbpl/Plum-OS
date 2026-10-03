@@ -1,5 +1,7 @@
 bits 64
 
+extern isr_common
+
 section .text
 
 %macro pushall 0
@@ -81,7 +83,6 @@ isr_common_stub:
     ;sub rsp, 512
     ;fxsave [rsp]
 
-    extern isr_common
     call isr_common
 
     ;fxrstor [rsp]

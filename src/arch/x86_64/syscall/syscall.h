@@ -2,7 +2,6 @@
 #include "Drivers/Keyboard.hpp"
 #include "std/types.hpp"
 #include "Drivers/GPU/OpenPL/OpenPL.hpp"
-#include "Drivers/Network/IPv4/TCP.hpp"
 #include "Drivers/Network/Sockets/tcp_socket.hpp"
 
 enum class syscall_id : u64 {
@@ -11,7 +10,6 @@ enum class syscall_id : u64 {
     serial_write = 2,
     serial_put_char = 3,
     get_key = 4,
-    exit = 5,
     sleep = 6,
     pci = 7,
     heap = 8,
@@ -21,6 +19,7 @@ enum class syscall_id : u64 {
     OpenPL = 21,
     socket = 22,
     tcp_socket = 23,
+    exit = 60,
 };
 
 struct syscall_regs {
@@ -74,8 +73,8 @@ inline kb::key_code sys_get_key(const bool wait = true) {
     return static_cast<kb::key_code>(syscall(4, (u64)wait));
 }
 
-inline void sys_exit() {
-    syscall(5);
+inline void sys_exit(const int status) {
+    syscall(static_cast<u64>(syscall_id::exit), status);
 }
 
 inline void sys_sleep(const u64 milliseconds) {

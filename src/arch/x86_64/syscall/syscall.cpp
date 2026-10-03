@@ -13,11 +13,14 @@
 #include "Drivers/Network/Drivers/RTL8139.hpp"
 #include "Drivers/Network/IPv4/TCP.hpp"
 #include "kernel/log.h"
+#include "kernel/Process/Process_manager.hpp"
 
 extern "C" u64 user_rsp = 0;
 
 extern "C" u64 user_rcx = 0;
 extern "C" u64 user_r11 = 0;
+
+extern "C" void swap_thread(u64 new_thread);
 
 auto validate_user_ptr = [](const u64 ptr) -> bool {
     return ptr != 0;
@@ -59,11 +62,14 @@ extern "C" u64 dispatch_syscall(syscall_regs *regs) {
             }
             return static_cast<u64>(kb::read_char());
 
-        case syscall_id::exit:
+        case syscall_id::exit: {
+            auto t = proc::get_thread();
+            t->state = proc::ThreadState::Terminated;
+            auto new_r = proc::schedule(t->regs);
             return 0;
+        }
 
         case syscall_id::sleep:
-            systemPL::fb.swap(); // TODO remove all the swaps everywhere and just keep swapping at a fixed itnerval on a separate thread when we have threads
             Time::Sleep(regs->arg1);
             return 0;
 

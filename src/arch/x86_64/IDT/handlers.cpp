@@ -106,9 +106,13 @@ namespace IDT {
         // Handlers here
         if (regs->int_no == 32) { // Timer
             Time::tick++;
+            auto t = proc::get_thread();
+            if (t) {
+                t->work++;
 
-            if (Time::tick % 3 == 0)
-                ret = proc::schedule(regs);
+                if (t->work == t->priority || t->priority == 0)
+                    ret = proc::schedule(regs);
+            }
         }
 
         if (regs->int_no >= 32) {

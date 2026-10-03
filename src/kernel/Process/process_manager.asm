@@ -1,4 +1,24 @@
+bits 64
 global asm_ring3
+global swap_thread
+
+%macro popall 0
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rdi
+    pop rsi
+    pop rbp
+    pop rbx
+    pop rdx
+    pop rcx
+    pop rax
+%endmacro
 
 asm_ring3:
     mov rbx, rdi
@@ -10,6 +30,7 @@ asm_ring3:
     mov r10, [rbx + 0x28]
     mov r9, [rbx + 0x30]
     mov r8, [rbx + 0x38]
+    mov rdi, [rbx + 0x40]
     mov rsi, [rbx + 0x48]
     mov rbp, [rbx + 0x50]
     mov rdx, [rbx + 0x60]
@@ -24,9 +45,19 @@ asm_ring3:
     and rsp, ~0xF
     sub rsp, 8
 
+    mov rbx, [rbx + 88]
+
     ; Segments
     mov ax, 0x2B
     mov ds, ax
     mov es, ax
 
     o64 sysret ; kernel -> user
+
+swap_thread:
+    mov rsp, rdi
+    popall
+    ;add rsp, 16
+    ret
+
+section .note.GNU-stack noalloc noexec nowrite progbits
