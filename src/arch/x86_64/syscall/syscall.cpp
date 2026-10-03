@@ -62,12 +62,9 @@ extern "C" u64 dispatch_syscall(syscall_regs *regs) {
             }
             return static_cast<u64>(kb::read_char());
 
-        case syscall_id::exit: {
-            auto t = proc::get_thread();
-            t->state = proc::ThreadState::Terminated;
-            auto new_r = proc::schedule(t->regs);
+        case syscall_id::exit:
+            proc::exit_current();
             return 0;
-        }
 
         case syscall_id::sleep:
             Time::Sleep(regs->arg1);

@@ -110,7 +110,7 @@ namespace IDT {
             if (t) {
                 t->work++;
 
-                if (t->work == t->priority || t->priority == 0)
+                if (t->state == proc::ThreadState::Terminated || t->work == t->priority || t->priority == 0)
                     ret = proc::schedule(regs);
             }
         }

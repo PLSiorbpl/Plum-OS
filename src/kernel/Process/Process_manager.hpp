@@ -27,7 +27,10 @@ namespace proc {
     extern "C" uint64_t current_kernel_stack;
     using ThreadEntry = void(*)();
 
+    int pick_next_runnable();
     uint64_t schedule(IDT::ISR_Registers *regs);
+
+    [[noreturn]] void exit_current();
 
     inline Thread *get_thread() {
         if (current_thread < 0) return nullptr;
