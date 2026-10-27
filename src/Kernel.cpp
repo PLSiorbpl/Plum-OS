@@ -14,6 +14,7 @@
 #include "Drivers/Network/Sockets/tcp_socket.hpp"
 #include "Drivers/Network/Common.hpp"
 #include "kernel/Process/Process_manager.hpp"
+#include "std/iostream.hpp"
 
 struct Command {
     const char *name;
@@ -44,7 +45,7 @@ Command commands[] = {
                 tsock::tcp_socket* client = nullptr;
 
                 while (!client) {
-                    auto key = sys_get_key(false);
+                    auto key = std::cin();
                     if (key == kb::key_code::KEY_ESC) { if (client) client->close(); server->close(); return; }
 
                     client = server->accept();
@@ -272,6 +273,8 @@ void list_commands(int argc, char** argv) {
 static OpenPL::Context ctx;
 
 extern "C" void user_space_main() {
+    sys_open("stdout", 0, 0);
+    sys_open("stdin", 0, 0);
     OpenPL::Framebuffer framebuffer = ctx.create_framebuffer(0, 0);
     ctx.bind_framebuffer(framebuffer);
 
@@ -290,7 +293,7 @@ extern "C" void user_space_main() {
 
     while (true) {
         sys_swap_framebuffer();
-        const kb::key_code key = sys_get_key();
+        const kb::key_code key = std::cin();
 
         if (key == kb::key_code::KEY_NULL)
             continue;
@@ -298,14 +301,14 @@ extern "C" void user_space_main() {
         if (key == kb::key_code::KEY_BACKSPACE) {
             if (i <= 0) continue;
             if (buffer[i-1] == '\t') {
-                std::print("\b\b\b\b");
+                std::printf("\b\b\b\b");
             }
-            std::put_char('\b');
+            std::printf("\b");
             buffer[i-1] = '\0';
             i--;
         } else if (key == kb::key_code::KEY_ENTER) {
             buffer[i] = '\0';
-            std::put_char('\n');
+            std::printf("\n");
 
             run_program(buffer);
 
@@ -315,7 +318,7 @@ extern "C" void user_space_main() {
             if (kb::to_char(key) == 0) continue;
             if (i >= 256) continue;
             buffer[i] = kb::to_char(key);
-            std::put_char(kb::to_char(key));
+            std::printf("%c", std::Output::std_out, kb::to_char(key));
             i++;
         }
     }

@@ -15,6 +15,7 @@
 #include "std/math_functions.hpp"
 #include "Drivers/Network/Sockets/socket.hpp"
 #include "Drivers/USB/mouse.hpp"
+#include "std/iostream.hpp"
 
 namespace MyCraft {
     using namespace OpenPL;
@@ -35,7 +36,7 @@ namespace MyCraft {
         camera.Sensitivity = 0.5f;
 
         while (true) {
-            const kb::key_code kb_key = sys_get_key(false);
+            const kb::key_code kb_key = std::cin();
 
             if (camera.chunk != camera.l_chunk) {
                 GenerateChunks(camera.chunk, 2);

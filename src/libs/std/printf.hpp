@@ -15,8 +15,6 @@ namespace std {
     }
 
     void printf(const char* text, Output out = Output::std_out, ...);
-    void print(const char* text, Output out = Output::std_out, Color color = Color::LightGray);
-    void put_char(char c, Output out = Output::std_out, Color color = Color::LightGray);
 
     void move_cursor(int offset_x, int offset_y);
     void set_cursor(int x, int y);

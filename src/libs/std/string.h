@@ -15,7 +15,7 @@ namespace std {
     static const bool is_floating_point_v = is_floating_point<T>::value;
 
     template <typename T>
-    void to_str(char* buffer, T value) {
+    size_t to_str(char* buffer, T value) {
         if constexpr (is_floating_point_v<T>) {
             // ---------------------------------
             // Floats
@@ -71,8 +71,10 @@ namespace std {
 
             if (last_digit_index == start_frac - 1) {
                 buffer[start_frac - 1] = '\0';
+                return start_frac-1;
             } else {
                 buffer[last_digit_index + 1] = '\0';
+                return last_digit_index+1;
             }
         } else {
             // ---------------------------------
@@ -106,6 +108,7 @@ namespace std {
             }
 
             buffer[i] = '\0';
+            return i;
         }
     }
 
@@ -149,7 +152,7 @@ namespace std {
      }
 
     template<typename T>
-    void to_hex_str(char* buffer, T value) {
+    size_t to_hex_str(char* buffer, T value) {
         buffer[0] = '0';
         buffer[1] = 'x';
 
@@ -175,6 +178,8 @@ namespace std {
         }
 
         *ptr = '\0';
+
+        return ptr - buffer;
     }
 
     inline int64_t str_to_int(const char *str) {
