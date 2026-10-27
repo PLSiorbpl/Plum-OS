@@ -21,28 +21,28 @@ namespace Chess {
         uint32_t bpp = 32;
         if (argc > 1 && argv) {
             for (int i = 1; i < argc; i++) {
-                if (std::str_cmp(argv[i], "-w") && i+1 < argc) {
+                if (std::strcmp(argv[i], "-w") && i+1 < argc) {
                     w = std::str_to_int(argv[i+1]);
                     if (w < 2) w = 2;
                     if (w > 3072) w = 3072;
                     i++;
                     continue;
                 }
-                if (std::str_cmp(argv[i], "-h") && i+1 < argc) {
+                if (std::strcmp(argv[i], "-h") && i+1 < argc) {
                     h = std::str_to_int(argv[i+1]);
                     if (h < 2) h = 2;
                     if (h > 3072) h = 3072;
                     i++;
                     continue;
                 }
-                if (std::str_cmp(argv[i], "-bpp") && i+1 < argc) {
+                if (std::strcmp(argv[i], "-bpp") && i+1 < argc) {
                     bpp = std::str_to_int(argv[i+1]);
                     if (bpp < 32) bpp = 32;
                     if (bpp > 32) bpp = 32;
                     i++;
                     continue;
                 }
-                if (std::str_cmp(argv[i], "--help")) {
+                if (std::strcmp(argv[i], "--help")) {
                 }
                 std::printf("&7Usage: &fchess &e[OPTIONS]\n\n");
                 std::printf("&eOption     &fMeaning\n");

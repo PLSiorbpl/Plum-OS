@@ -2,13 +2,25 @@
 #include "types.hpp"
 
 namespace std {
-    bool str_cmp(const char *str1, const char *str2) {
+    bool strcmp(const char *str1, const char *str2) {
         uint64_t idx = 0;
         while (str1[idx] == str2[idx]) {
             if (str1[idx] == '\0') return true;
             idx++;
         }
         return false;
+    }
+
+    bool strncmp(const char* str1, const char* str2, uint64_t n) {
+        for (uint64_t i = 0; i < n; i++) {
+            if (str1[i] != str2[i])
+                return false;
+
+            if (str1[i] == '\0')
+                return true;
+        }
+
+        return true;
     }
 
     int strlen(const char* text) {

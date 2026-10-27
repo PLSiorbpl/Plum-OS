@@ -2,7 +2,8 @@
 #include "std/types.hpp"
 
 namespace std {
-    bool str_cmp(const char* str1, const char* str2);
+    bool strcmp(const char* str1, const char* str2);
+    bool strncmp(const char* str1, const char* str2, uint64_t n);
     int strlen(const char* text);
     i32 strcpy(char* dst, const char* src);
 

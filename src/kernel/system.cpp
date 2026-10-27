@@ -117,6 +117,15 @@ namespace systemPL {
         fat_manager.init(device);
         //fat_manager.read(1, 0);
 
+        proc::DeviceFileSystem devfs;
+
+        proc::stdoutObject stdout_device;
+        proc::stdinObject stdin_object;
+
+        devfs.register_device("stdout", &stdout_device);
+        devfs.register_device("stdin", &stdin_object);
+        proc::vfs.mount("/dev", &devfs);
+
         log::info("xHCI:\n"); fb.swap();
 
         USB::m_xhci_driver.init_device();
