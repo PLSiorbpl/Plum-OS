@@ -5,11 +5,9 @@
 #include "Drivers/Network/Sockets/tcp_socket.hpp"
 
 enum class syscall_id : u64 {
-    write = 0,
-    put_char = 1,
-    serial_write = 2,
-    serial_put_char = 3,
-    get_key = 4,
+    read = 0,
+    write = 1,
+    open = 2,
     sleep = 6,
     pci = 7,
     heap = 8,
@@ -53,24 +51,16 @@ inline u64 syscall(u64 id, u64 a1 = 0, u64 a2 = 0, u64 a3 = 0, u64 a4 = 0, u64 a
     return ret;
 }
 
-inline u64 sys_write(const char* str, const u64 color) {
-    return syscall(0, reinterpret_cast<u64>(str), color);
+inline u64 sys_write(const unsigned int fd, const char* buf, const size_t count) {
+    return syscall((u64)syscall_id::write, fd, reinterpret_cast<u64>(buf), count);
 }
 
-inline u64 sys_put_char(const char c, const u64 color) {
-    return syscall(1, (u64)static_cast<u8>(c), color);
+inline u64 sys_read(const unsigned int fd, const char *buf, const size_t count) {
+    return syscall((u64)syscall_id::read, fd, reinterpret_cast<u64>(buf), count);
 }
 
-inline u64 sys_serial_write(const char* c) {
-    return syscall(2, reinterpret_cast<u64>(c));
-}
-
-inline u64 sys_serial_put_char(const char c) {
-    return syscall(3, (u64)static_cast<u8>(c));
-}
-
-inline kb::key_code sys_get_key(const bool wait = true) {
-    return static_cast<kb::key_code>(syscall(4, (u64)wait));
+inline u64 sys_open(const char *filename, const int flags, const int mode) {
+    return syscall((u64)syscall_id::open, reinterpret_cast<u64>(filename), flags, mode);
 }
 
 inline void sys_exit(const int status) {

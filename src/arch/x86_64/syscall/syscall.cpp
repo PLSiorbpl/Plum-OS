@@ -14,6 +14,7 @@
 #include "Drivers/Network/IPv4/TCP.hpp"
 #include "kernel/log.h"
 #include "kernel/Process/Process_manager.hpp"
+#include "ksyscall.hpp"
 
 extern "C" u64 user_rsp = 0;
 
@@ -28,39 +29,21 @@ auto validate_user_ptr = [](const u64 ptr) -> bool {
 
 extern "C" u64 dispatch_syscall(syscall_regs *regs) {
     switch (static_cast<syscall_id>(regs->id)) {
+
+        // unsigned int fd, char* buf, size_t count
         case syscall_id::write:
-            if (!validate_user_ptr(regs->arg1))
-                return static_cast<u64>(-1);
-            for (int i = 0; reinterpret_cast<const char*>(regs->arg1)[i] != '\0'; i++) {
-                systemPL::fb.put_char(reinterpret_cast<const char*>(regs->arg1)[i], color_to_rgb(static_cast<Color>(regs->arg2)));
-            }
+            kwrite(regs->arg1, (char *)regs->arg2, regs->arg3);
             return 0;
 
-        case syscall_id::put_char:
-            systemPL::fb.put_char(static_cast<char>(regs->arg1), color_to_rgb(static_cast<Color>(regs->arg2)));
+        // unsigned int fd, char* buf, size_t count
+        case syscall_id::read:
+            kread(regs->arg1, (char *)regs->arg2, regs->arg3);
             return 0;
 
-        case syscall_id::serial_put_char:
-            while (!(x64::inb(0x3F8 + 5) & 0x20)) { }
-            x64::outb(0x3F8, static_cast<char>(regs->arg1));
+        // char *filename, const int flags, const int mode
+        case syscall_id::open:
+            kopen((char *)regs->arg1, regs->arg2, regs->arg3);
             return 0;
-
-        case syscall_id::serial_write: {
-            if (!validate_user_ptr(regs->arg1))
-                return static_cast<u64>(-1);
-            const auto text = reinterpret_cast<const char *>(regs->arg1);
-            for (int i = 0; text[i] != '\0'; i++) {
-                while (!(x64::inb(0x3F8 + 5) & 0x20)) { }
-                x64::outb(0x3F8, text[i]);
-            }
-            return 0;
-        }
-
-	    case syscall_id::get_key:
-            if (regs->arg1 == true) {
-                return static_cast<u64>(kb::get_char());
-            }
-            return static_cast<u64>(kb::read_char());
 
         case syscall_id::exit:
             proc::exit_current();
