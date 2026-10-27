@@ -1,4 +1,5 @@
 #pragma once
+#include "FileDescriptor.hpp"
 #include "std/types.hpp"
 #include "std/vector.hpp"
 #include "arch/x86_64/IDT/IDT.hpp"
@@ -18,10 +19,16 @@ namespace proc {
 
         ThreadState state = ThreadState::Ready;
 
+        FDEntry fd_table[MAX_FDS];
+
         uint8_t priority = 3;
         uint8_t work = 0;
     };
     extern std::vector<Thread> Threads;
+
+    int alloc_fd(Thread& process, OpenFile* file);
+    OpenFile* create_open_file(FileObject* object, uint32_t flags);
+    void release_open_file(OpenFile* file);
 
     extern int current_thread;
     extern "C" uint64_t current_kernel_stack;

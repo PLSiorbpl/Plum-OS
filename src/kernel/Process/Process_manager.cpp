@@ -110,4 +110,47 @@ namespace proc {
     void stub_thread() {
 
     }
+
+    int alloc_fd(Thread& process, OpenFile* file) {
+        for (int fd = 0; fd < MAX_FDS; fd++) {
+            if (process.fd_table[fd].file == nullptr) {
+                process.fd_table[fd].file = file;
+                return fd;
+            }
+        }
+
+        return -1;
+    }
+
+    OpenFile* create_open_file(FileObject* object, uint32_t flags) {
+        if (!object)
+            return nullptr;
+
+        auto* file = new OpenFile{};
+
+        if (!file)
+            return nullptr;
+
+        file->object = object;
+        file->position = 0;
+        file->flags = flags;
+        file->ref_count++;
+
+        return file;
+    }
+
+    void release_open_file(OpenFile* file) {
+        if (!file)
+            return;
+
+        if (--file->ref_count != 0)
+            return;
+
+        if (file->object)
+            file->object->close();
+
+        delete file;
+    }
+
+    VFS vfs;
 }
