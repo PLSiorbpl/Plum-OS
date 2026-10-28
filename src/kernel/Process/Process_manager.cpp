@@ -7,7 +7,7 @@
 
 extern "C" void asm_restore_frame(uint64_t frame);
 
-namespace proc {
+namespace vfs {
     uint64_t current_kernel_stack;
     std::vector<Thread> Threads;
     int current_thread = -1;

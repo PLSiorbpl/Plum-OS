@@ -5,6 +5,7 @@
 #include "kernel/Memory/heap.hpp"
 #include "arch/x86_64/syscall/syscall.h"
 #include "Assets/textures.hpp"
+#include "Drivers/Keyboard.hpp"
 #include "std/math.hpp"
 #include "std/printf.hpp"
 #include "World/chunk.hpp"

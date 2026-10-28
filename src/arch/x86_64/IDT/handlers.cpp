@@ -106,12 +106,12 @@ namespace IDT {
         // Handlers here
         if (regs->int_no == 32) { // Timer
             Time::tick++;
-            auto t = proc::get_thread();
+            auto t = vfs::get_thread();
             if (t) {
                 t->work++;
 
-                if (t->state == proc::ThreadState::Terminated || t->work == t->priority || t->priority == 0)
-                    ret = proc::schedule(regs);
+                if (t->state == vfs::ThreadState::Terminated || t->work == t->priority || t->priority == 0)
+                    ret = vfs::schedule(regs);
             }
         }
 

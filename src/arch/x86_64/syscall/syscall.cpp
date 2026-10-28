@@ -12,7 +12,6 @@
 #include "../../../Drivers/Network/Sockets/socket.hpp"
 #include "Drivers/Network/Drivers/RTL8139.hpp"
 #include "Drivers/Network/IPv4/TCP.hpp"
-#include "kernel/log.h"
 #include "kernel/Process/Process_manager.hpp"
 #include "ksyscall.hpp"
 
@@ -32,24 +31,35 @@ extern "C" u64 dispatch_syscall(syscall_regs *regs) {
 
         // unsigned int fd, char* buf, size_t count
         case syscall_id::write:
-            kwrite(regs->arg1, (char *)regs->arg2, regs->arg3);
-            return 0;
+            return kwrite(regs->arg1, (char *)regs->arg2, regs->arg3);
 
         // unsigned int fd, char* buf, size_t count
         case syscall_id::read:
-            kread(regs->arg1, (char *)regs->arg2, regs->arg3);
-            return 0;
+            return kread(regs->arg1, (char *)regs->arg2, regs->arg3);
 
         // char *filename, const int flags, const int mode
         case syscall_id::open:
-            kopen((char *)regs->arg1, regs->arg2, regs->arg3);
-            return 0;
+            return kopen((char *)regs->arg1, regs->arg2, regs->arg3);
 
+        // char *filename, vfs::FileStat *statbuf
+        case syscall_id::stat:
+            return kstat(reinterpret_cast<char *>(regs->arg1), reinterpret_cast<vfs::FileStat *>(regs->arg2));
+
+        // unsigned int fd, vfs::FileStat *statbuf
+        case syscall_id::fstat:
+            return kfstat(regs->arg1, reinterpret_cast<vfs::FileStat *>(regs->arg2));
+
+        // char *filename, vfs::FileStat *statbuf
+        case syscall_id::lstat:
+            return klstat(reinterpret_cast<char *>(regs->arg1), reinterpret_cast<vfs::FileStat *>(regs->arg2));
+
+        // int status
         case syscall_id::exit:
-            proc::exit_current();
+            vfs::exit_current();
             return 0;
 
-        case syscall_id::sleep:
+        // u64 milliseconds
+        case syscall_id::nanosleep:
             Time::Sleep(regs->arg1);
             return 0;
 

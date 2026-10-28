@@ -166,7 +166,7 @@ Command commands[] = {
             bool us = false;
             if (argc > 1) {
                 for (int i = 1; i < argc; i++) {
-                    if (std::strcmp(argv[i], "-h")) {
+                    if (std::strcmp(argv[i], "-h") == 0) {
                         std::printf("&7Usage: &fsleep &e[OPTIONS]\n\n");
                         std::printf("&eOption     &fMeaning\n");
                         std::printf("&b-us        &7Micro-seconds mode\n");
@@ -175,14 +175,14 @@ Command commands[] = {
                         std::printf("&b-t TIME    &7Time to wait\n");
                         std::printf("&b-h         &7This text\n");
                         return;
-                    } else if (std::strcmp(argv[i], "-us")) {
+                    } else if (std::strcmp(argv[i], "-us") == 0) {
                         us = true;
                         unit = false;
-                    } else if (std::strcmp(argv[i], "-ms")) {
+                    } else if (std::strcmp(argv[i], "-ms") == 0) {
                         unit = false;
-                    } else if (std::strcmp(argv[i], "-s")) {
+                    } else if (std::strcmp(argv[i], "-s") == 0) {
                         unit = true;
-                    } else if (std::strcmp(argv[i], "-t")) {
+                    } else if (std::strcmp(argv[i], "-t") == 0) {
                         if (i+1 < argc) {
                             wait = std::str_to_int(argv[i+1]);
                         }
@@ -204,11 +204,11 @@ Command commands[] = {
             bool show_all = false;
             if (argc > 0) {
                 for (int i = 0; i < argc; i++) {
-                    if (std::strcmp(argv[i], "-s")) {
+                    if (std::strcmp(argv[i], "-s") == 0) {
                         show_all = false;
-                    } else if (std::strcmp(argv[i], "-l")) {
+                    } else if (std::strcmp(argv[i], "-l") == 0) {
                         show_all = true;
-                    } else if (std::strcmp(argv[i], "-h")) {
+                    } else if (std::strcmp(argv[i], "-h") == 0) {
                         std::printf("&7Usage: &fheap &e[OPTIONS]\n\n");
                         std::printf("&eOption     &fMeaning\n");
                         std::printf("&b-l         &7Show all information about heap\n");
@@ -273,10 +273,21 @@ void list_commands(int argc, char** argv) {
 static OpenPL::Context ctx;
 
 extern "C" void user_space_main() {
-    sys_open("/dev/stdout", 0, 0);
-    sys_open("/dev/stdin", 0, 0);
     OpenPL::Framebuffer framebuffer = ctx.create_framebuffer(0, 0);
     ctx.bind_framebuffer(framebuffer);
+    sys_swap_framebuffer();
+
+    sys_open("/dev/stdout", 0, 0);
+    sys_open("/dev/stdin", 0, 0);
+    const uint32_t fd = sys_open("/test.txt", 0, 0);
+
+    char bu[64] = {};
+    vfs::FileStat stat{};
+    sys_read(fd, bu, 32);
+    sys_fstat(fd, &stat);
+    std::printf("File: \"/test.txt\"\n");
+    std::printf("content: %s\n", std::Output::std_out, bu);
+    std::printf("stats:\n \tsize: %u \n\ttype: %u \n\tattr: %u \n\tcrea_time: %x \n\tmod_time: %x", std::Output::std_out, stat.size, (u64)stat.type, stat.attributes, stat.created_time, stat.modified_time);
 
     std::printf("\n&aPrintf(%/i %/u %/s %/x %/c %/l %/f) &c%i %u %s %x %c %l %f\n", std::Output::std_out, -6767, 6767, "LOL",
                 0x00006677, 'j', 0x7FFFFFFFFFFFFFFF, 3.146767);
@@ -363,7 +374,7 @@ void run_program(char* buffer) {
 
     bool found_command = false;
     for (auto &[name, func] : commands) {
-        if (std::strcmp(command_name, name)) {
+        if (std::strcmp(command_name, name) == 0) {
             func(argc, args);
             found_command = true;
             break;

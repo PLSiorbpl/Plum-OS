@@ -1,15 +1,16 @@
 #include "ksyscall.hpp"
 
+#include "kernel/log.h"
 #include "kernel/Process/Process_manager.hpp"
 #include "kernel/Process/FileDescriptor.hpp"
 
 u64 kwrite(const unsigned int fd, const char *buf, const size_t size) {
-    auto process = proc::get_thread();
+    auto process = vfs::get_thread();
 
-    if (fd < 0 || fd >= proc::MAX_FDS)
+    if (fd < 0 || fd >= vfs::MAX_FDS)
         return -1;
 
-    proc::OpenFile* file = process->fd_table[fd].file;
+    vfs::OpenFile* file = process->fd_table[fd].file;
 
     if (!file || !file->object)
         return -1;
@@ -18,12 +19,12 @@ u64 kwrite(const unsigned int fd, const char *buf, const size_t size) {
 }
 
 u64 kread(const unsigned int fd, void *buf, const size_t size) {
-    auto process = proc::get_thread();
+    auto process = vfs::get_thread();
 
-    if (fd < 0 || fd >= proc::MAX_FDS)
+    if (fd < 0 || fd >= vfs::MAX_FDS)
         return -1;
 
-    proc::OpenFile* file = process->fd_table[fd].file;
+    vfs::OpenFile* file = process->fd_table[fd].file;
 
     if (!file || !file->object)
         return -1;
@@ -32,13 +33,13 @@ u64 kread(const unsigned int fd, void *buf, const size_t size) {
 }
 
 u64 kopen(const char *path, const int flags, const int mode) {
-    auto process = proc::get_thread();
+    auto process = vfs::get_thread();
 
-    proc::FileObject* object = proc::vfs.open(path, flags);
+    vfs::FileObject* object = vfs::vfs.open(path, flags);
     if (!object)
         return -1;
 
-    proc::OpenFile* file = create_open_file(object, flags);
+    vfs::OpenFile* file = create_open_file(object, flags);
     if (!file) {
         object->close();
         return -1;
@@ -46,9 +47,43 @@ u64 kopen(const char *path, const int flags, const int mode) {
 
     int fd = alloc_fd(*process, file);
     if (fd < 0) {
-        proc::release_open_file(file);
+        vfs::release_open_file(file);
         return -1;
     }
 
     return fd;
+}
+
+u64 kstat(const char *filename, vfs::FileStat *statbuf) {
+    vfs::FileObject* object = vfs::vfs.open(filename, 0);
+    if (!object)
+        return -1;
+
+    const auto ret = object->stat(statbuf);
+    object->close();
+    return ret;
+}
+
+u64 kfstat(unsigned int fd, vfs::FileStat *statbuf) {
+    auto process = vfs::get_thread();
+
+    if (fd < 0 || fd >= vfs::MAX_FDS)
+        return -1;
+
+    const vfs::OpenFile* file = process->fd_table[fd].file;
+
+    if (!file || !file->object)
+        return -1;
+
+    return file->object->stat(statbuf);
+}
+
+u64 klstat(const char *filename, vfs::FileStat *statbuf) {
+    vfs::FileObject* object = vfs::vfs.open(filename, 0);
+    if (!object)
+        return -1;
+
+    const auto ret = object->stat(statbuf);
+    object->close();
+    return ret;
 }

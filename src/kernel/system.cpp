@@ -19,11 +19,13 @@
 #include "Memory/mem_helper.h"
 #include "arch/x86_64/IDT/APIC.hpp"
 #include "arch/x86_64/IDT/lapic.h"
+#include "Drivers/fs/DeviceFS/DeviceFilesystem.hpp"
 #include "Drivers/Network/Drivers/RTL8139.hpp"
 #include "Drivers/hpet/hpet.h"
 #include "uacpi/uacpi.h"
 #include "Drivers/fs/FAT32/fat32.hpp"
 #include "kernel/Process/Process_manager.hpp"
+#include "Drivers/fs/FAT32/FAT32FileSystem.hpp"
 
 extern u64 kernel_address_vert;
 extern u64 kernel_address_phys;
@@ -33,6 +35,8 @@ namespace systemPL {
     drivers::ahci::ahci ahci;
     framebuffer::framebuffer fb;
     fs::partition::partition_manager partition_manager;
+    drivers::ahci::ahci_device *_device;
+    fs::FAT32::fat32_manager fat_manager;
     drivers::acpi::acpi acpi;
     apic::IOAPIC ioapic;
 
@@ -95,36 +99,32 @@ namespace systemPL {
         ahci.init();
         for (int i = 0; i < 32; ++i) {
             auto device = ahci.request_device(i);
-            if (!device.is_active())
+            if (!device->is_active())
                 continue;
 
-            device.initialize();
-            auto size = static_cast<double>(device.get_sector_count() * device.get_sector_size());
+            device->initialize();
+            auto size = static_cast<double>(device->get_sector_count() * device->get_sector_size());
             log::info("Device info for device %i: \n"
-                                "\tModel: %s\n"
-                                "\tFirmware version: %s\n"
-                                "\tSize: %f%s\n", i, device.get_model(), device.get_firmware(), size, std::format_size(size));
-
+                "\tModel: %s\n"
+                "\tFirmware version: %s\n"
+                "\tSize: %f%s\n", i, device->get_model(), device->get_firmware(), size, std::format_size(size));
         }
-
 
         log::info("FAT32:\n"); fb.swap();
 
-        auto device = ahci.request_device(0);
-        partition_manager.init(device);
+        _device = ahci.request_device(0);
+        partition_manager.init(*_device);
         partition_manager.list_partitions();
-        fs::FAT32::fat32_manager fat_manager;
-        fat_manager.init(device);
-        //fat_manager.read(1, 0);
+        fat_manager.init(*_device);
 
-        proc::DeviceFileSystem devfs;
+        fs::DeviceFileSystem devfs;
 
-        proc::stdoutObject stdout_device;
-        proc::stdinObject stdin_object;
+        fs::stdoutObject stdout_device;
+        fs::stdinObject stdin_object;
 
         devfs.register_device("stdout", &stdout_device);
         devfs.register_device("stdin", &stdin_object);
-        proc::vfs.mount("/dev", &devfs);
+        vfs::vfs.mount("/dev", &devfs);
 
         log::info("xHCI:\n"); fb.swap();
 
@@ -134,8 +134,8 @@ namespace systemPL {
         fb.swap();
 
         enter_user_space(); // set up syscalls calling and STAR ...
-        proc::create_thread(nullptr, 0);
-        proc::create_thread(user_space_main, 3);
-        proc::enter_ring3(proc::Threads[0]);
+        vfs::create_thread(nullptr, 0);
+        vfs::create_thread(user_space_main, 3);
+        vfs::enter_ring3(vfs::Threads[0]);
     }
 }

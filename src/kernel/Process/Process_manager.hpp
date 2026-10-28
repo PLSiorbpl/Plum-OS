@@ -4,7 +4,7 @@
 #include "std/vector.hpp"
 #include "arch/x86_64/IDT/IDT.hpp"
 
-namespace proc {
+namespace vfs {
     enum class ThreadState : uint8_t {
         Ready,
         Running,

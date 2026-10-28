@@ -1,14 +1,16 @@
 #pragma once
-#include "Drivers/Keyboard.hpp"
 #include "std/types.hpp"
 #include "Drivers/GPU/OpenPL/OpenPL.hpp"
 #include "Drivers/Network/Sockets/tcp_socket.hpp"
+#include "kernel/Process/FileDescriptor.hpp"
 
 enum class syscall_id : u64 {
     read = 0,
     write = 1,
     open = 2,
-    sleep = 6,
+    stat = 4,
+    fstat = 5,
+    lstat = 6,
     pci = 7,
     heap = 8,
     swap_framebuffer = 9,
@@ -17,6 +19,7 @@ enum class syscall_id : u64 {
     OpenPL = 21,
     socket = 22,
     tcp_socket = 23,
+    nanosleep = 35,
     exit = 60,
 };
 
@@ -63,12 +66,24 @@ inline u64 sys_open(const char *filename, const int flags, const int mode) {
     return syscall((u64)syscall_id::open, reinterpret_cast<u64>(filename), flags, mode);
 }
 
+inline u64 sys_stat(const char *filename, vfs::FileStat *statbuf) {
+    return syscall((u64)syscall_id::stat, reinterpret_cast<u64>(filename), reinterpret_cast<u64>(statbuf));
+}
+
+inline u64 sys_fstat(unsigned int fd, vfs::FileStat *statbuf) {
+    return syscall((u64)syscall_id::fstat, fd, reinterpret_cast<u64>(statbuf));
+}
+
+inline u64 sys_lstat(const char *filename, vfs::FileStat *statbuf) {
+    return syscall((u64)syscall_id::lstat, reinterpret_cast<u64>(filename), reinterpret_cast<u64>(statbuf));
+}
+
 inline void sys_exit(const int status) {
     syscall(static_cast<u64>(syscall_id::exit), status);
 }
 
 inline void sys_sleep(const u64 milliseconds) {
-    syscall(6, milliseconds);
+    syscall(static_cast<u64>(syscall_id::nanosleep), milliseconds);
 }
 
 inline void sys_pci_test() {

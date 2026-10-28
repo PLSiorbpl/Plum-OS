@@ -67,7 +67,7 @@ namespace drivers::ahci {
 
         void init();
 
-        ahci_device request_device(u32 id);
+        ahci_device *request_device(u32 id);
     private:
         void on_interrupt(const IDT::ISR_Registers* isr);
         void probe_ports();

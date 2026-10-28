@@ -2,13 +2,19 @@
 #include "types.hpp"
 
 namespace std {
-    bool strcmp(const char *str1, const char *str2) {
-        uint64_t idx = 0;
-        while (str1[idx] == str2[idx]) {
-            if (str1[idx] == '\0') return true;
-            idx++;
-        }
-        return false;
+    int strcmp (const char *str1, const char *str2) {
+        auto s1 = reinterpret_cast<const unsigned char *>(str1);
+        auto s2 = reinterpret_cast<const unsigned char *>(str2);
+        unsigned char c1, c2;
+
+        do {
+            c1 = static_cast<unsigned char>(*s1++);
+            c2 = static_cast<unsigned char>(*s2++);
+            if (c1 == '\0')
+                return c1 - c2;
+        } while (c1 == c2);
+
+        return c1 - c2;
     }
 
     bool strncmp(const char* str1, const char* str2, uint64_t n) {

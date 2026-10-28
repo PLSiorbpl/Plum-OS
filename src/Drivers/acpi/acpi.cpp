@@ -66,7 +66,7 @@ uacpi_iteration_decision drivers::acpi::acpi::init_device(void* ctx, uacpi_names
         for (u32 i = 0; i < drivers.size(); i++) {
             auto& driver = drivers[i];
             for (const char* const* id = driver.pnp_ids; *id != nullptr; id++) {
-                if (std::strcmp(info->hid.value, *id) == true) {
+                if (std::strcmp(info->hid.value, *id) == 0) {
                     drv = &driver;
                     break;
                 }
@@ -81,7 +81,7 @@ uacpi_iteration_decision drivers::acpi::acpi::init_device(void* ctx, uacpi_names
             auto& driver = drivers[i];
             for (const char* const* id = driver.pnp_ids; *id != nullptr; id++) {
                 for (u32 j = 0; j < info->cid.num_ids; j++) {
-                    if (std::strcmp(info->cid.ids[j].value, *id) == true) {
+                    if (std::strcmp(info->cid.ids[j].value, *id) == 0) {
                         drv = &driver;
                         break;
                     }

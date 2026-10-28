@@ -1,4 +1,6 @@
 #include "fat32.hpp"
+
+#include "FAT32FileSystem.hpp"
 #include "Drivers/fs/partition/gpt_partition.h"
 #include "Drivers/fs/partition/partition_manager.h"
 #include "kernel/log.h"
@@ -46,6 +48,11 @@ namespace fs::FAT32 {
             if (validate_fat32(fat->bpb)) {
                 std::kernel::printf("\n&aFAT32 &eid:&f%u ", fat_partitions.size());
                 fat_partitions.push_back(*fat);
+
+                fatfile_systems.push_back(FAT32FileSystem());
+                FAT32FileSystem *fat32_file_system = &fatfile_systems.back();
+                fat32_file_system->mount(*device, *fat);
+                vfs::vfs.mount("/", fat32_file_system);
 
                 char oem_name[9];
                 for (int s = 0; s < 8; s++) {

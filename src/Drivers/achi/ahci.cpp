@@ -46,12 +46,12 @@ void drivers::ahci::ahci::init() {
     Time::Sleep(100);
 }
 
-drivers::ahci::ahci_device drivers::ahci::ahci::request_device(const u32 id) {
+drivers::ahci::ahci_device *drivers::ahci::ahci::request_device(const u32 id) {
     if (id >= 32) {
         log::warn("Attempted to request non existant device!");
-        return ahci_device(nullptr, false);
+        return new ahci_device(nullptr, false);
     }
-    return ahci_device(&ports[id], ports[id].is_active());
+    return new ahci_device(&ports[id], ports[id].is_active());
 }
 
 void drivers::ahci::ahci::on_interrupt(const IDT::ISR_Registers* isr) {

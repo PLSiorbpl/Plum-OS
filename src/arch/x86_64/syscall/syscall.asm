@@ -41,7 +41,13 @@ handle_syscall:
     pop rbp
     pop rbx
 
-    add rsp, 7*8    ; undo 7 syscall-arg regs
+    add rsp, 8      ; skip rax (keep return value)
+    pop rdi         ; restore user argument registers
+    pop rsi
+    pop rdx
+    pop r10
+    pop r8
+    pop r9
     pop r11
     pop rcx
     pop rsp

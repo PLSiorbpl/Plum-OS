@@ -1,5 +1,5 @@
 #pragma once
-#include "../../../libs/std/types.hpp"
+#include "std/types.hpp"
 
 namespace fs::partition {
     struct gpt_header {
