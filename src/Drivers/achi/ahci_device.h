@@ -2,6 +2,7 @@
 #include <memory.hpp>
 #include "ahci_helper.h"
 #include "ahci_port.h"
+#include "kernel/log.h"
 
 namespace drivers::ahci {
     class ahci_device {
@@ -12,15 +13,25 @@ namespace drivers::ahci {
         bool initialize();
 
         bool read(const u64 start, const u32 count, u16* buffer) const {
+            if (count == 0)
+                return true;
+            if (!buffer)
+                return false;
+
             return port->read(start, count, buffer, sector_size);
         }
 
-        bool read_bytes(const u64 start, const i32 count, u16* buffer) const {
-            if (count < 0)
+        bool read_bytes(const u64 start, const u32 count, u16* buffer) const {
+            if (count == 0)
+                return true;
+            if (!buffer)
                 return false;
+
             i32 remaining = count;
             u64 current_sector = start;
-            const auto temp = static_cast<u16 *>(heap::malloc_align(4096*2, 0x1000));
+            const auto temp = static_cast<u16 *>(heap::malloc_align(sector_size, 0x1000));
+            if (!temp)
+                return false;
             while (remaining > 0) {
                 if (!read(current_sector, 1, temp)) {
                     heap::free_align(temp);

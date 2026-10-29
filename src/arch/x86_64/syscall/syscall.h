@@ -11,16 +11,18 @@ enum class syscall_id : u64 {
     stat = 4,
     fstat = 5,
     lstat = 6,
-    pci = 7,
-    heap = 8,
-    swap_framebuffer = 9,
-    list_partitions = 10,
-    USB = 20,
-    OpenPL = 21,
-    socket = 22,
-    tcp_socket = 23,
+    lseek = 8,
     nanosleep = 35,
     exit = 60,
+
+    pci = 100,
+    heap = 101,
+    swap_framebuffer = 102,
+    list_partitions = 103,
+    USB = 104,
+    OpenPL = 105,
+    socket = 106,
+    tcp_socket = 107,
 };
 
 struct syscall_regs {
@@ -70,12 +72,16 @@ inline u64 sys_stat(const char *filename, vfs::FileStat *statbuf) {
     return syscall((u64)syscall_id::stat, reinterpret_cast<u64>(filename), reinterpret_cast<u64>(statbuf));
 }
 
-inline u64 sys_fstat(unsigned int fd, vfs::FileStat *statbuf) {
+inline u64 sys_fstat(const unsigned int fd, vfs::FileStat *statbuf) {
     return syscall((u64)syscall_id::fstat, fd, reinterpret_cast<u64>(statbuf));
 }
 
 inline u64 sys_lstat(const char *filename, vfs::FileStat *statbuf) {
     return syscall((u64)syscall_id::lstat, reinterpret_cast<u64>(filename), reinterpret_cast<u64>(statbuf));
+}
+
+inline u64 sys_lseek(const unsigned int fd, const int64_t offset, const unsigned int whence) {
+    return syscall((u64)syscall_id::lseek, fd, offset, whence);
 }
 
 inline void sys_exit(const int status) {
@@ -87,19 +93,19 @@ inline void sys_sleep(const u64 milliseconds) {
 }
 
 inline void sys_pci_test() {
-    syscall(7);
+    syscall(static_cast<u64>(syscall_id::pci));
 }
 
 inline void sys_heap_dump(const bool show_all) {
-    syscall(8, show_all);
+    syscall(static_cast<u64>(syscall_id::heap), show_all);
 }
 
 inline void sys_swap_framebuffer() {
-    syscall(9);
+    syscall(static_cast<u64>(syscall_id::swap_framebuffer));
 }
 
 inline void sys_list_parts() {
-    syscall(10);
+    syscall(static_cast<u64>(syscall_id::list_partitions));
 }
 
 inline void sys_usb() {
@@ -107,15 +113,15 @@ inline void sys_usb() {
 }
 
 inline void sys_openPL(OpenPL::Context *ctx, const uint32_t Operation) {
-    syscall(21, reinterpret_cast<u64>(ctx), Operation);
+    syscall(static_cast<u64>(syscall_id::OpenPL), reinterpret_cast<u64>(ctx), Operation);
 }
 
 // 0 - receive   1 - send
 inline bool sys_socket(int socket, void *recv, bool dir, int timeout = 0) {
-    return syscall(22, static_cast<u64>(socket), reinterpret_cast<u64>(recv), (u64)dir, static_cast<u64>(timeout));
+    return syscall(static_cast<u64>(syscall_id::socket), static_cast<u64>(socket), reinterpret_cast<u64>(recv), (u64)dir, static_cast<u64>(timeout));
 }
 
 // 0 - receive   1 - send
 inline bool sys_tcp_socket(tsock::tcp_syscall *buf, bool dir, int timeout = 0) {
-    return syscall(23, reinterpret_cast<u64>(buf), dir, static_cast<u64>(timeout));
+    return syscall(static_cast<u64>(syscall_id::tcp_socket), reinterpret_cast<u64>(buf), dir, static_cast<u64>(timeout));
 }

@@ -53,6 +53,10 @@ extern "C" u64 dispatch_syscall(syscall_regs *regs) {
         case syscall_id::lstat:
             return klstat(reinterpret_cast<char *>(regs->arg1), reinterpret_cast<vfs::FileStat *>(regs->arg2));
 
+        // unsigned int fd, uint64_t offset, unsigned int whence
+        case syscall_id::lseek:
+            return klseek(regs->arg1, regs->arg2, regs->arg3);
+
         // int status
         case syscall_id::exit:
             vfs::exit_current();

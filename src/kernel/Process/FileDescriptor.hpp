@@ -2,6 +2,12 @@
 #include "std/types.hpp"
 #include "std/vector.hpp"
 
+enum class SeekMode : uint8_t {
+    SEEK_SET = 0,
+    SEEK_CUR = 1,
+    SEEK_END = 2,
+};
+
 namespace vfs {
     constexpr size_t MAX_FDS = 64;
 
@@ -28,7 +34,7 @@ namespace vfs {
 
         virtual int64_t read(void* buffer, size_t size) { return -1; }
         virtual int64_t write(const void* buffer, size_t size) { return -1; }
-        virtual int64_t seek(int64_t offset, int whence) { return -1; }
+        virtual int64_t seek(int64_t offset, unsigned int whence) { return -1; }
         [[nodiscard]] virtual int64_t size() const { return -1; }
         [[nodiscard]] virtual bool is_directory() const { return false; }
         virtual int stat(FileStat* info) const { return -1; }

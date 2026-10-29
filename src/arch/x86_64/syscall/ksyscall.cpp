@@ -87,3 +87,17 @@ u64 klstat(const char *filename, vfs::FileStat *statbuf) {
     object->close();
     return ret;
 }
+
+u64 klseek(const unsigned int fd, const int64_t offset, const unsigned int whence) {
+    auto process = vfs::get_thread();
+
+    if (fd < 0 || fd >= vfs::MAX_FDS)
+        return -1;
+
+    vfs::OpenFile* file = process->fd_table[fd].file;
+
+    if (!file || !file->object)
+        return -1;
+
+    return file->object->seek(offset, whence);
+}

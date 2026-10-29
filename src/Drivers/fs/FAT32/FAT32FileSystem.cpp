@@ -104,8 +104,41 @@ namespace fs {
         return nullptr;
     }
 
+    bool FAT32FileSystem::get_next_cluster(uint64_t cluster, uint64_t *next) {
+        if (!next)
+            return false;
+
+        const uint64_t fat_start_lba = fat.gpt_partition.starting_lba + fat.bpb.rsvd_sector_count;
+        const uint64_t fat_offset = cluster * 4;
+        const uint64_t fat_sector = fat_start_lba + fat_offset / fat.bpb.bytes_per_sector;
+        const uint32_t entry_offset = fat_offset % fat.bpb.bytes_per_sector;
+
+        const auto sector = static_cast<uint16_t *>(heap::malloc(fat.bpb.bytes_per_sector));
+        if (!device->read(fat_sector, 1, sector)) {
+            log::error("[ FAT32 ] Read failed: sector=%l size=%uB", fat_sector, 512);
+            return false;
+        }
+
+        uint32_t value;
+        memcpy(&value, reinterpret_cast<uint8_t*>(sector) + entry_offset, sizeof(value));
+        heap::free(sector);
+
+        value &= 0x0FFFFFFF;
+
+        if (value >= 0x0FFFFFF8) {
+            *next = 0;
+            return true;
+        }
+
+        if (value < 2 || value >= 0x0FFFFFF0)
+            return false;
+
+        *next = value;
+        return true;
+    }
+
     FAT32File::FAT32File(FAT32FileSystem *filesystem, const FAT32::file_entry &file) : filesystem(filesystem), file(file) {
-        const uint32_t first_cluster = static_cast<uint32_t>(file.first_cluster_low) | (static_cast<uint32_t>(file.first_cluster_high) << 16);
+        first_cluster = static_cast<uint32_t>(file.first_cluster_low) | (static_cast<uint32_t>(file.first_cluster_high) << 16);
         start_lba = filesystem->calculate_lba(first_cluster);
     }
 
@@ -113,22 +146,72 @@ namespace fs {
         if (!filesystem || !filesystem->get_dev() || !buffer)
             return -1;
 
-        if (size == 0 || file.file_size == 0)
+        if (size == 0 || position >= file.file_size)
             return 0;
 
-        if (start_lba == 0)
+        const uint64_t remaining_file = file.file_size - position;
+        const uint64_t bytes_to_read = size < remaining_file ? size : remaining_file;
+        const uint64_t cluster_size = filesystem->get_cluster_size();
+        if (cluster_size == 0 || start_lba < 2)
             return -1;
 
-        const uint64_t bytes_to_read = size < file.file_size ? size : file.file_size;
-        if (bytes_to_read > filesystem->get_cluster_size())
-            return -1;
+        uint64_t cluster = first_cluster;
+        const uint64_t cluster_index = position / cluster_size;
 
-        if (!filesystem->get_dev()->read_bytes(start_lba, bytes_to_read, static_cast<uint16_t*>(buffer))) {
-            log::error("[ FAT32 ] Read failed: lba=%l size=%u",start_lba, bytes_to_read);
-            return -1;
+        for (uint64_t i = 0; i < cluster_index; ++i) {
+            uint64_t next;
+
+            if (!filesystem->get_next_cluster(cluster, &next))
+                return -1;
+
+            if (next == 0)
+                return -1;
+
+            cluster = next;
         }
 
-        return static_cast<int64_t>(bytes_to_read);
+        auto* temp = static_cast<uint8_t*>(heap::malloc(cluster_size));
+        if (!temp)
+            return -1;
+
+        uint64_t copied = 0;
+        uint64_t offset_in_cluster = position % cluster_size;
+
+        while (copied < bytes_to_read) {
+            const uint64_t available = cluster_size - offset_in_cluster;
+            const uint64_t chunk = (bytes_to_read - copied < available) ? bytes_to_read - copied : available;
+            const uint64_t cluster_lba = filesystem->calculate_lba(cluster);
+
+            if (!filesystem->get_dev()->read_bytes(cluster_lba, static_cast<int32_t>(cluster_size), reinterpret_cast<uint16_t*>(temp))) {
+                heap::free(temp);
+                position += copied;
+                return copied > 0 ? static_cast<int64_t>(copied) : -1;
+            }
+
+            memmove(static_cast<uint8_t*>(buffer) + copied, temp + offset_in_cluster, chunk);
+            copied += chunk;
+            offset_in_cluster = 0;
+
+            if (copied < bytes_to_read) {
+                uint64_t next;
+
+                if (!filesystem->get_next_cluster(cluster, &next)) {
+                    heap::free(temp);
+                    position += copied;
+                    return copied > 0 ? static_cast<int64_t>(copied) : -1;
+                }
+
+                if (next == 0)
+                    return -1;
+
+                cluster = next;
+            }
+        }
+
+        heap::free(temp);
+        position += copied;
+
+        return static_cast<int64_t>(copied);
     }
 
     int FAT32File::stat(FileStat *info) const {
@@ -138,5 +221,49 @@ namespace fs {
         info->created_time = file.creation_time;
         info->modified_time = file.last_modification_time;
         return 0;
+    }
+
+    int64_t FAT32File::seek(const int64_t offset, unsigned int whence) {
+        if (!filesystem)
+            return -1;
+
+        int64_t base = 0;
+
+        switch (static_cast<SeekMode>(whence)) {
+            case SeekMode::SEEK_SET:
+                base = 0;
+                break;
+
+            case SeekMode::SEEK_CUR:
+                if (position > INT64_MAX)
+                    return -1;
+
+                base = static_cast<int64_t>(position);
+                break;
+
+            case SeekMode::SEEK_END:
+                if (file.file_size > INT64_MAX)
+                    return -1;
+
+                base = static_cast<int64_t>(file.file_size);
+                break;
+
+            default:
+                return -1;
+        }
+
+        if (offset > 0 && base > INT64_MAX - offset)
+            return -1;
+        if (offset < 0 && base < INT64_MIN - offset)
+            return -1;
+        const int64_t new_position = base + offset;
+
+        if (new_position < 0 ||
+        static_cast<uint64_t>(new_position) > file.file_size)
+            return -1;
+
+        position = static_cast<uint64_t>(new_position);
+
+        return new_position;
     }
 }

@@ -20,6 +20,7 @@ namespace fs {
         bool mount(drivers::ahci::ahci_device &dev, const FAT32::fat_info& part);
         vfs::FileObject *open(const char *path, int flags) override;
 
+        bool get_next_cluster(uint64_t cluster, uint64_t *next);
         [[nodiscard]] uint64_t calculate_lba(const uint32_t cluster) const {
             return cluster >= 2 ? fat.data_start + static_cast<uint64_t>(cluster - 2) * fat.bpb.sectors_per_cluster : 0;
         }
@@ -30,13 +31,16 @@ namespace fs {
     class FAT32File : public vfs::FileObject {
         FAT32FileSystem *filesystem = nullptr;
         FAT32::file_entry file = {};
+        uint64_t first_cluster;
         uint64_t start_lba = 0;
+        uint64_t position = 0;
 
     public:
         FAT32File(FAT32FileSystem *filesystem, const FAT32::file_entry &file);
 
         int64_t read(void *buffer, size_t size) override;
         int64_t write(const void *buffer, size_t size) override { return 0; }
+        int64_t seek(int64_t offset, unsigned int whence) override;
         [[nodiscard]] int64_t size() const override { return file.file_size; }
         [[nodiscard]] bool is_directory() const override { return false; }
         int stat(vfs::FileStat *info) const override;

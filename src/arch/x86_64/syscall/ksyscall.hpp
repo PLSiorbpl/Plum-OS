@@ -12,3 +12,5 @@ u64 kopen(const char *path, int flags, int mode);
 u64 kstat(const char *filename, vfs::FileStat *statbuf);
 u64 kfstat(unsigned int fd, vfs::FileStat *statbuf);
 u64 klstat(const char *filename, vfs::FileStat *statbuf);
+
+u64 klseek(unsigned int fd, int64_t offset, unsigned int whence);

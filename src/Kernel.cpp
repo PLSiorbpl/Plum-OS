@@ -283,7 +283,8 @@ extern "C" void user_space_main() {
 
     char bu[64] = {};
     vfs::FileStat stat{};
-    sys_read(fd, bu, 32);
+    sys_lseek(fd, 10, static_cast<unsigned int>(SeekMode::SEEK_SET));
+    sys_read(fd, bu, 33);
     sys_fstat(fd, &stat);
     std::printf("File: \"/test.txt\"\n");
     std::printf("content: %s\n", std::Output::std_out, bu);
