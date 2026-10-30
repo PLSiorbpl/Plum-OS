@@ -283,12 +283,23 @@ extern "C" void user_space_main() {
 
     char bu[64] = {};
     vfs::FileStat stat{};
-    sys_lseek(fd, 10, static_cast<unsigned int>(SeekMode::SEEK_SET));
-    sys_read(fd, bu, 33);
     sys_fstat(fd, &stat);
+
+    char m = 0;
+    sys_write(fd, &m, stat.size);
+    sys_ftruncate(fd, 0);
+    sys_lseek(fd, 0, static_cast<unsigned int>(SeekMode::SEEK_SET));
+    auto mes = "Hello this is FAT32 file test!";
+    sys_write(fd, mes, std::strlen(mes));
+    mes = "I wrote this";
+    sys_write(fd, mes, std::strlen(mes)+1);
+    sys_fstat(fd, &stat);
+
+    sys_lseek(fd, 0, static_cast<unsigned int>(SeekMode::SEEK_SET));
+    sys_read(fd, bu, stat.size);
     std::printf("File: \"/test.txt\"\n");
     std::printf("content: %s\n", std::Output::std_out, bu);
-    std::printf("stats:\n \tsize: %u \n\ttype: %u \n\tattr: %u \n\tcrea_time: %x \n\tmod_time: %x", std::Output::std_out, stat.size, (u64)stat.type, stat.attributes, stat.created_time, stat.modified_time);
+    std::printf("stats:\n\tsize: %u \n\ttype: %u \n\tattr: %u \n\tcrea_time: %x \n\tmod_time: %x", std::Output::std_out, stat.size, (u64)stat.type, stat.attributes, stat.created_time, stat.modified_time);
 
     std::printf("\n&aPrintf(%/i %/u %/s %/x %/c %/l %/f) &c%i %u %s %x %c %l %f\n", std::Output::std_out, -6767, 6767, "LOL",
                 0x00006677, 'j', 0x7FFFFFFFFFFFFFFF, 3.146767);

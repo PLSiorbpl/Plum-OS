@@ -2,7 +2,6 @@
 #include <memory.hpp>
 #include "ahci_helper.h"
 #include "ahci_port.h"
-#include "kernel/log.h"
 
 namespace drivers::ahci {
     class ahci_device {
@@ -49,6 +48,51 @@ namespace drivers::ahci {
 
         bool write(const u64 start, const u32 count, const u16* buffer) const {
             return port->write(start, count, buffer, sector_size);
+        }
+
+        bool write_bytes(const u64 start, const u32 offset, const u32 count, const u16* buffer) const {
+            if (count == 0)
+                return true;
+
+            if (!buffer || !port || sector_size == 0)
+                return false;
+
+            u32 remaining = count;
+            u64 current_sector = start + offset / sector_size;
+            u32 offset_in_sector = offset % sector_size;
+            u32 buffer_offset = 0;
+
+            auto* temp = static_cast<u16*>(heap::malloc_align(sector_size, 0x1000));
+
+            if (!temp)
+                return false;
+
+            while (remaining > 0) {
+                const u32 available = sector_size - offset_in_sector;
+                const u32 chunk = remaining < available ? remaining : available;
+
+                if (chunk != sector_size) {
+                    if (!read(current_sector, 1, temp)) {
+                        heap::free_align(temp);
+                        return false;
+                    }
+                }
+
+                memmove(reinterpret_cast<u8*>(temp) + offset_in_sector, reinterpret_cast<const u8*>(buffer) + buffer_offset, chunk);
+
+                if (!port->write(current_sector, 1, temp, sector_size)) {
+                    heap::free_align(temp);
+                    return false;
+                }
+
+                remaining -= chunk;
+                buffer_offset += chunk;
+                current_sector++;
+                offset_in_sector = 0;
+            }
+
+            heap::free_align(temp);
+            return true;
         }
 
         [[nodiscard]] const char* get_model() const { return model; }

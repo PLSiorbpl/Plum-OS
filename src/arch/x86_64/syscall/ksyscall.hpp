@@ -14,3 +14,6 @@ u64 kfstat(unsigned int fd, vfs::FileStat *statbuf);
 u64 klstat(const char *filename, vfs::FileStat *statbuf);
 
 u64 klseek(unsigned int fd, int64_t offset, unsigned int whence);
+
+u64 ktruncate(const char *filename, uint64_t lenght);
+u64 kftruncate(unsigned int fd, uint64_t lenght);

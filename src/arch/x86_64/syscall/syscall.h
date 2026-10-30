@@ -14,6 +14,8 @@ enum class syscall_id : u64 {
     lseek = 8,
     nanosleep = 35,
     exit = 60,
+    truncate = 76,
+    ftruncate = 77,
 
     pci = 100,
     heap = 101,
@@ -90,6 +92,14 @@ inline void sys_exit(const int status) {
 
 inline void sys_sleep(const u64 milliseconds) {
     syscall(static_cast<u64>(syscall_id::nanosleep), milliseconds);
+}
+
+inline u64 sys_truncate(const char *filename, uint64_t lenght) {
+    return syscall((u64)syscall_id::ftruncate, reinterpret_cast<u64>(filename), lenght);
+}
+
+inline u64 sys_ftruncate(const unsigned int fd, uint64_t lenght) {
+    return syscall((u64)syscall_id::ftruncate, fd, lenght);
 }
 
 inline void sys_pci_test() {

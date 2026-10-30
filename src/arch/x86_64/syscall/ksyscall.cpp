@@ -101,3 +101,27 @@ u64 klseek(const unsigned int fd, const int64_t offset, const unsigned int whenc
 
     return file->object->seek(offset, whence);
 }
+
+u64 ktruncate(const char *filename, uint64_t lenght) {
+    vfs::FileObject* object = vfs::vfs.open(filename, 0);
+    if (!object)
+        return -1;
+
+    const auto ret = object->truncate(lenght);
+    object->close();
+    return ret;
+}
+
+u64 kftruncate(unsigned int fd, uint64_t lenght) {
+    auto process = vfs::get_thread();
+
+    if (fd < 0 || fd >= vfs::MAX_FDS)
+        return -1;
+
+    vfs::OpenFile* file = process->fd_table[fd].file;
+
+    if (!file || !file->object)
+        return -1;
+
+    return file->object->truncate(lenght);
+}

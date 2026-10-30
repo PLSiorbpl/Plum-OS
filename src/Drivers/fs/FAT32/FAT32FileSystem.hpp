@@ -34,15 +34,21 @@ namespace fs {
         uint64_t first_cluster;
         uint64_t start_lba = 0;
         uint64_t position = 0;
+        uint64_t cluster_size = 0;
+        uint64_t directory_entry_offset;
+        uint64_t directory_entry_lba;
+
+        bool update_file_entry();
 
     public:
-        FAT32File(FAT32FileSystem *filesystem, const FAT32::file_entry &file);
+        FAT32File(FAT32FileSystem *filesystem, const FAT32::file_entry &file, uint64_t directory_entry_offset, uint64_t directory_entry_lba);
 
         int64_t read(void *buffer, size_t size) override;
-        int64_t write(const void *buffer, size_t size) override { return 0; }
+        int64_t write(const void *buffer, size_t size) override;
         int64_t seek(int64_t offset, unsigned int whence) override;
         [[nodiscard]] int64_t size() const override { return file.file_size; }
         [[nodiscard]] bool is_directory() const override { return false; }
         int stat(vfs::FileStat *info) const override;
+        int truncate(uint64_t lenght) override;
     };
 }

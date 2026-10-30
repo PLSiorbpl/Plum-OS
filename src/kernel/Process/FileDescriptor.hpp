@@ -35,6 +35,7 @@ namespace vfs {
         virtual int64_t read(void* buffer, size_t size) { return -1; }
         virtual int64_t write(const void* buffer, size_t size) { return -1; }
         virtual int64_t seek(int64_t offset, unsigned int whence) { return -1; }
+        virtual int truncate(uint64_t lenght) { return -1; }
         [[nodiscard]] virtual int64_t size() const { return -1; }
         [[nodiscard]] virtual bool is_directory() const { return false; }
         virtual int stat(FileStat* info) const { return -1; }

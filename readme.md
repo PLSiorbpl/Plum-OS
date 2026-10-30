@@ -1,4 +1,11 @@
 # Plum-OS
+[![Stars](https://img.shields.io/github/stars/PLSiorbpl/PLum-OS?style=for-the-badge&logo=github)](https://github.com/PLSiorbpl/PLum-OS/stargazers)
+[![Forks](https://img.shields.io/github/forks/PLSiorbpl/PLum-OS?style=for-the-badge&logo=github)](https://github.com/PLSiorbpl/PLum-OS/network/members)
+[![Issues](https://img.shields.io/github/issues/PLSiorbpl/PLum-OS?style=for-the-badge&logo=github)](https://github.com/PLSiorbpl/PLum-OS/issues)
+[![License](https://img.shields.io/github/license/PLSiorbpl/PLum-OS?style=for-the-badge)](https://github.com/PLSiorbpl/PLum-OS/blob/main/LICENSE)
+[![Last Commit](https://img.shields.io/github/last-commit/PLSiorbpl/PLum-OS?style=for-the-badge)](https://github.com/PLSiorbpl/PLum-OS/commits)
+[![Downloads](https://img.shields.io/github/downloads/PLSiorbpl/PLum-OS/total?style=for-the-badge&logo=github)](https://github.com/PLSiorbpl/PLum-OS/releases)   
+
 ![](Images/Screen1.png)
 - Very basic 64bit UEFI kernel made by PLSiorbpl and Imated in **C++**
 - _**Should**_ work on all modern and older Computers supporting UEFI

@@ -67,6 +67,14 @@ extern "C" u64 dispatch_syscall(syscall_regs *regs) {
             Time::Sleep(regs->arg1);
             return 0;
 
+        // char *filename, uint64_t lenght
+        case syscall_id::truncate:
+            return ktruncate(reinterpret_cast<char *>(regs->arg1), regs->arg2);
+
+        // unsigned int fd, uint64_t lenght
+        case syscall_id::ftruncate:
+            return kftruncate(regs->arg1, regs->arg2);
+
         case syscall_id::pci:
             PCI::Test();
             return 0;
