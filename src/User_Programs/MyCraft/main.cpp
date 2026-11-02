@@ -1,5 +1,4 @@
 #include "main.hpp"
-#include "User_Programs/Chess/main.hpp"
 
 #include "Drivers/GPU/OpenPL/OpenPL.hpp"
 #include "kernel/Memory/heap.hpp"
@@ -14,7 +13,6 @@
 #include "World/world.hpp"
 #include "std/trigonometry.hpp"
 #include "std/math_functions.hpp"
-#include "Drivers/Network/Sockets/socket.hpp"
 #include "Drivers/USB/mouse.hpp"
 #include "std/iostream.hpp"
 

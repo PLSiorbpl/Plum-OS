@@ -1,7 +1,7 @@
 #include "system.hpp"
 
 #include "acpi.h"
-#include "kernel.h"
+#include "userspace.h"
 #include "limine.h"
 #include "linker_info.hpp"
 #include "log.h"
@@ -118,7 +118,6 @@ namespace systemPL {
         fat_manager.init(*_device);
 
         fs::DeviceFileSystem devfs;
-
         fs::stdoutObject stdout_device;
         fs::stdinObject stdin_object;
 
