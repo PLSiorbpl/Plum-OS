@@ -5,3 +5,10 @@
 /isodir/boot/kopalnia_os
 /Images/
 /qemu.log
+/CMakeFiles/
+CMakeCache.txt
+Kernel.elf
+Makefiles
+*.cmake
+compile_commands.json
+Makefile
