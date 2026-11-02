@@ -11,6 +11,8 @@ namespace fs {
         root_cluster = fat.bpb.ebpb.root_directory_cluster;
         cluster_size = fat.bpb.bytes_per_sector * fat.bpb.sectors_per_cluster;
         root_lba = calculate_lba(root_cluster);
+        data_sectors = fat.bpb.total_sectors - fat.bpb.rsvd_sector_count - (fat.bpb.num_of_FATs * fat.bpb.ebpb.sectors_per_FAT);
+        max_cluster = (data_sectors/fat.bpb.sectors_per_cluster) + 1;
 
         return true;
     }
@@ -18,7 +20,7 @@ namespace fs {
     FileObject *FAT32FileSystem::open(const char *path, int flags) {
         auto *buffer = static_cast<FAT32::file_entry *>(heap::malloc(cluster_size));
 
-        if (!device->read_bytes(root_lba, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
+        if (!device->read_bytes(root_lba, 0, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
             heap::free(buffer);
             log::error("[ FAT32 ] Failed to read cluster: lba=%l cluster_size=%u", root_lba, cluster_size);
             return nullptr;
@@ -104,24 +106,25 @@ namespace fs {
         return nullptr;
     }
 
-    bool FAT32FileSystem::get_next_cluster(uint64_t cluster, uint64_t *next) {
-        if (!next)
+    bool FAT32FileSystem::get_next_cluster(const uint64_t cluster, uint64_t *next) const {
+        if (!next || !device || fat.bpb.bytes_per_sector == 0 || cluster < 2 || cluster > max_cluster)
             return false;
 
-        const uint64_t fat_start_lba = fat.gpt_partition.starting_lba + fat.bpb.rsvd_sector_count;
+        const bool mirroring_disabled = fat.bpb.ebpb.flags & 0x80;
+        const uint64_t active_fat = mirroring_disabled ? (fat.bpb.ebpb.flags & 0x0F) : 0;
+        if (active_fat >= fat.bpb.num_of_FATs)
+            return false;
+
+        const uint64_t fat_start_lba = fat.gpt_partition.starting_lba + fat.bpb.rsvd_sector_count + active_fat * fat.bpb.ebpb.sectors_per_FAT;
         const uint64_t fat_offset = cluster * 4;
         const uint64_t fat_sector = fat_start_lba + fat_offset / fat.bpb.bytes_per_sector;
         const uint32_t entry_offset = fat_offset % fat.bpb.bytes_per_sector;
 
-        const auto sector = static_cast<uint16_t *>(heap::malloc(fat.bpb.bytes_per_sector));
-        if (!device->read(fat_sector, 1, sector)) {
-            log::error("[ FAT32 ] Read failed: sector=%l size=%uB", fat_sector, 512);
+        uint32_t value;
+        if (!device->read_bytes(fat_sector, entry_offset, sizeof(uint32_t), reinterpret_cast<uint16_t *>(&value))) {
+            log::error("[ FAT32 ] Read failed: sector=%l offset=%l size=%uB", fat_sector, entry_offset, sizeof(uint32_t));
             return false;
         }
-
-        uint32_t value;
-        memcpy(&value, reinterpret_cast<uint8_t*>(sector) + entry_offset, sizeof(value));
-        heap::free(sector);
 
         value &= 0x0FFFFFFF;
 
@@ -130,226 +133,102 @@ namespace fs {
             return true;
         }
 
-        if (value < 2 || value >= 0x0FFFFFF0)
+        if (value < 2 || value >= 0x0FFFFFF0 || value > max_cluster)
             return false;
 
         *next = value;
         return true;
     }
 
-    FAT32File::FAT32File(FAT32FileSystem *filesystem, const FAT32::file_entry &file, const uint64_t directory_entry_offset, const uint64_t directory_entry_lba)
-    : filesystem(filesystem), file(file), directory_entry_offset(directory_entry_offset), directory_entry_lba(directory_entry_lba) {
-        first_cluster = static_cast<uint32_t>(file.first_cluster_low) | (static_cast<uint32_t>(file.first_cluster_high) << 16);
-        start_lba = filesystem->calculate_lba(first_cluster);
-        cluster_size = filesystem->get_cluster_size();
-    }
-
-    bool FAT32File::update_file_entry() {
-        if (!filesystem || !filesystem->get_dev())
+    bool FAT32FileSystem::find_free_cluster(uint64_t *cluster) const {
+        if (!cluster || !device || fat.bpb.bytes_per_sector == 0)
             return false;
 
-        if (!filesystem->get_dev()->write_bytes(directory_entry_lba, directory_entry_offset, sizeof(FAT32::file_entry), reinterpret_cast<uint16_t *>(&file))) {
+        const bool mirroring_disabled = fat.bpb.ebpb.flags & 0x80;
+        const uint64_t active_fat = mirroring_disabled ? (fat.bpb.ebpb.flags & 0x0F) : 0;
+        if (active_fat >= fat.bpb.num_of_FATs)
+            return false;
+
+        const uint64_t fat_start_lba = fat.gpt_partition.starting_lba + fat.bpb.rsvd_sector_count + active_fat * fat.bpb.ebpb.sectors_per_FAT;
+
+        const auto sector = static_cast<uint16_t *>(heap::malloc(fat.bpb.bytes_per_sector));
+        if (!sector)
+            return false;
+
+        for (uint64_t sector_index = 0; sector_index < fat.bpb.ebpb.sectors_per_FAT; sector_index++) {
+            if (!device->read(fat_start_lba + sector_index, 1, sector)) {
+                heap::free(sector);
+                log::error("[ FAT32 ] Read failed: sector=%l size=%uB", fat_start_lba + sector_index, fat.bpb.bytes_per_sector);
+                return false;
+            }
+
+            uint32_t value;
+            for (int i = 0; i < fat.bpb.bytes_per_sector / sizeof(uint32_t); i++) {
+                const uint32_t cluster_index = sector_index * (fat.bpb.bytes_per_sector / sizeof(uint32_t)) + i;
+                if (cluster_index < 2)
+                    continue;
+                if (cluster_index >= max_cluster) {
+                    heap::free(sector);
+                    return false;
+                }
+                memcpy(&value, reinterpret_cast<uint8_t*>(sector) + i * sizeof(uint32_t), sizeof(uint32_t));
+                value &= 0x0FFFFFFF;
+                if (value == 0x0) {
+                    *cluster = cluster_index;
+                    heap::free(sector);
+                    return true;
+                }
+            }
+        }
+
+        heap::free(sector);
+        return false;
+    }
+
+    bool FAT32FileSystem::set_next_cluster(const uint64_t cluster, uint32_t value) const {
+        if (!device || fat.bpb.bytes_per_sector == 0 || fat.bpb.num_of_FATs == 0 || fat.bpb.ebpb.sectors_per_FAT == 0 || cluster < 2 || cluster > max_cluster)
+            return false;
+
+        const bool mirroring_disabled = fat.bpb.ebpb.flags & 0x80;
+        const uint64_t active_fat = mirroring_disabled ? (fat.bpb.ebpb.flags & 0x0F) : 0;
+        if (active_fat >= fat.bpb.num_of_FATs)
+            return false;
+
+        uint64_t fat_start_lba = fat.gpt_partition.starting_lba + fat.bpb.rsvd_sector_count + active_fat * fat.bpb.ebpb.sectors_per_FAT;
+        const uint64_t fat_offset = cluster * 4;
+        uint64_t fat_sector = fat_start_lba + fat_offset / fat.bpb.bytes_per_sector;
+        const uint32_t entry_offset = fat_offset % fat.bpb.bytes_per_sector;
+
+        value &= 0x0FFFFFFF;
+
+        uint32_t old;
+        if (!device->read_bytes(fat_sector, entry_offset, sizeof(uint32_t), reinterpret_cast<uint16_t *>(&old))) {
+            log::error("[ FAT32 ] Read failed: sector=%l offset=%l size=%uB", fat_sector, entry_offset, sizeof(uint32_t));
             return false;
         }
-        return true;
-    }
 
-    int64_t FAT32File::write(const void *buffer, const size_t size) {
-        if (!filesystem || !filesystem->get_dev() || !buffer)
-            return -1;
+        old &= 0xF0000000;
+        value |= old;
 
-        if (size == 0)
-            return 0;
-
-        uint64_t cluster = first_cluster;
-        const uint64_t cluster_index = position / cluster_size;
-
-        for (uint64_t i = 0; i < cluster_index; ++i) {
-            uint64_t next;
-
-            if (!filesystem->get_next_cluster(cluster, &next))
-                return -1;
-
-            if (next == 0)
-                return -1;
-
-            cluster = next;
+        if (!device->write_bytes(fat_sector, entry_offset, sizeof(uint32_t), reinterpret_cast<uint16_t *>(&value))) {
+            log::error("[ FAT32 ] Write failed: sector=%l offset=%l size=%uB", fat_sector, entry_offset, sizeof(uint32_t));
+            return false;
         }
 
-        uint64_t written = 0;
-        uint64_t offset_in_cluster = position % cluster_size;
+        // Write to backups
+        bool succes = true;
+        if (!mirroring_disabled) {
+            for (uint32_t fat_index = 1; fat_index < fat.bpb.num_of_FATs; fat_index++) {
+                fat_start_lba = fat.gpt_partition.starting_lba + fat.bpb.rsvd_sector_count + fat_index * fat.bpb.ebpb.sectors_per_FAT;
+                fat_sector = fat_start_lba + fat_offset / fat.bpb.bytes_per_sector;
 
-        while (written < size) {
-            const uint64_t available = cluster_size - offset_in_cluster;
-            const uint64_t chunk = size - written < available ? size - written : available;
-            const uint64_t cluster_lba = filesystem->calculate_lba(cluster);
-
-            if (!filesystem->get_dev()->write_bytes(cluster_lba, offset_in_cluster, chunk, reinterpret_cast<const uint16_t *>(static_cast<const uint8_t *>(buffer) + written))) {
-                position += written;
-                return written > 0 ? static_cast<int64_t>(written) : -1;
-            }
-
-            written += chunk;
-            offset_in_cluster = 0;
-
-            if (written < size) {
-                uint64_t next;
-
-                if (!filesystem->get_next_cluster(cluster, &next)) {
-                    position += written;
-                    return written > 0 ? static_cast<int64_t>(written) : -1;
+                if (!device->write_bytes(fat_sector, entry_offset, sizeof(uint32_t), reinterpret_cast<uint16_t*>(&value))) {
+                    log::error("[ FAT32 ] Write to backup failed: sector=%l offset=%l size=%uB", fat_sector, entry_offset, sizeof(uint32_t));
+                    succes = false;
                 }
-
-                if (next == 0)
-                    return -1;
-
-                cluster = next;
             }
         }
 
-        position += written;
-        if (position > file.file_size) {
-            file.file_size = position;
-            update_file_entry();
-        }
-        return static_cast<int64_t>(size);
-    }
-
-    int64_t FAT32File::read(void *buffer, const size_t size) {
-        if (!filesystem || !filesystem->get_dev() || !buffer || cluster_size == 0 || start_lba < 2)
-            return -1;
-
-        if (size == 0 || position >= file.file_size)
-            return 0;
-
-        const uint64_t remaining_file = file.file_size - position;
-        const uint64_t bytes_to_read = size < remaining_file ? size : remaining_file;
-
-        uint64_t cluster = first_cluster;
-        const uint64_t cluster_index = position / cluster_size;
-
-        for (uint64_t i = 0; i < cluster_index; ++i) {
-            uint64_t next;
-
-            if (!filesystem->get_next_cluster(cluster, &next))
-                return -1;
-
-            if (next == 0)
-                return -1;
-
-            cluster = next;
-        }
-
-        auto* temp = static_cast<uint8_t*>(heap::malloc(cluster_size));
-        if (!temp)
-            return -1;
-
-        uint64_t copied = 0;
-        uint64_t offset_in_cluster = position % cluster_size;
-
-        while (copied < bytes_to_read) {
-            const uint64_t available = cluster_size - offset_in_cluster;
-            const uint64_t chunk = (bytes_to_read - copied < available) ? bytes_to_read - copied : available;
-            const uint64_t cluster_lba = filesystem->calculate_lba(cluster);
-
-            if (!filesystem->get_dev()->read_bytes(cluster_lba, static_cast<int32_t>(cluster_size), reinterpret_cast<uint16_t*>(temp))) {
-                heap::free(temp);
-                position += copied;
-                return copied > 0 ? static_cast<int64_t>(copied) : -1;
-            }
-
-            memmove(static_cast<uint8_t*>(buffer) + copied, temp + offset_in_cluster, chunk);
-            copied += chunk;
-            offset_in_cluster = 0;
-
-            if (copied < bytes_to_read) {
-                uint64_t next;
-
-                if (!filesystem->get_next_cluster(cluster, &next)) {
-                    heap::free(temp);
-                    position += copied;
-                    return copied > 0 ? static_cast<int64_t>(copied) : -1;
-                }
-
-                if (next == 0)
-                    return -1;
-
-                cluster = next;
-            }
-        }
-
-        heap::free(temp);
-        position += copied;
-
-        return static_cast<int64_t>(copied);
-    }
-
-    int FAT32File::stat(FileStat *info) const {
-        info->size = file.file_size;
-        info->type = static_cast<u64>(FileType::Regular);
-        info->attributes = file.attributes;
-        info->created_time = file.creation_time;
-        info->modified_time = file.last_modification_time;
-        return 0;
-    }
-
-    int64_t FAT32File::seek(const int64_t offset, unsigned int whence) {
-        if (!filesystem)
-            return -1;
-
-        int64_t base = 0;
-
-        switch (static_cast<SeekMode>(whence)) {
-            case SeekMode::SEEK_SET:
-                base = 0;
-                break;
-
-            case SeekMode::SEEK_CUR:
-                if (position > INT64_MAX)
-                    return -1;
-
-                base = static_cast<int64_t>(position);
-                break;
-
-            case SeekMode::SEEK_END:
-                if (file.file_size > INT64_MAX)
-                    return -1;
-
-                base = static_cast<int64_t>(file.file_size);
-                break;
-
-            default:
-                return -1;
-        }
-
-        if (offset > 0 && base > INT64_MAX - offset)
-            return -1;
-        if (offset < 0 && base < INT64_MIN - offset)
-            return -1;
-        const int64_t new_position = base + offset;
-
-        if (new_position < 0 ||
-        static_cast<uint64_t>(new_position) > file.file_size)
-            return -1;
-
-        position = static_cast<uint64_t>(new_position);
-
-        return new_position;
-    }
-
-    int FAT32File::truncate(const uint64_t lenght) {
-        if (!filesystem || !filesystem->get_dev())
-            return -1;
-
-        if (lenght > cluster_size)
-            return -1;
-
-        auto old_size = file.file_size;
-        file.file_size = lenght;
-        if (!update_file_entry()) {
-            file.file_size = old_size;
-            return -1;
-        }
-        return 0;
+        return succes;
     }
 }

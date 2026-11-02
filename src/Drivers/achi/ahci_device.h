@@ -14,46 +14,57 @@ namespace drivers::ahci {
         bool read(const u64 start, const u32 count, u16* buffer) const {
             if (count == 0)
                 return true;
-            if (!buffer)
+            if (!buffer || !port || sector_size == 0)
                 return false;
 
             return port->read(start, count, buffer, sector_size);
         }
 
-        bool read_bytes(const u64 start, const u32 count, u16* buffer) const {
+        bool read_bytes(const u64 start, const u32 offset, const u32 count, u16* buffer) const {
             if (count == 0)
                 return true;
-            if (!buffer)
+            if (!buffer || !port || sector_size == 0)
                 return false;
 
-            i32 remaining = count;
-            u64 current_sector = start;
+            u32 remaining = count;
+            u64 current_sector = start + offset / sector_size;
+            u32 offset_in_sector = offset % sector_size;
+            u32 buffer_offset = 0;
+
             const auto temp = static_cast<u16 *>(heap::malloc_align(sector_size, 0x1000));
             if (!temp)
                 return false;
             while (remaining > 0) {
+                const u32 available = sector_size - offset_in_sector;
+                const u32 chunk = remaining < available ? remaining : available;
+
                 if (!read(current_sector, 1, temp)) {
                     heap::free_align(temp);
                     return false;
                 }
-                const auto size = remaining < static_cast<i32>(sector_size) ? remaining : sector_size;
-                memmove(reinterpret_cast<u8*>(buffer) + (count - remaining), temp, size);
+                memmove(reinterpret_cast<u8*>(buffer) + buffer_offset, reinterpret_cast<u8 *>(temp) + offset_in_sector, chunk);
 
-                remaining -= static_cast<i32>(sector_size);
+                remaining -= chunk;
+                buffer_offset += chunk;
                 current_sector++;
+                offset_in_sector = 0;
             }
             heap::free_align(temp);
             return true;
         }
 
         bool write(const u64 start, const u32 count, const u16* buffer) const {
+            if (count == 0)
+                return true;
+            if (!buffer || !port || sector_size == 0)
+                return false;
+
             return port->write(start, count, buffer, sector_size);
         }
 
         bool write_bytes(const u64 start, const u32 offset, const u32 count, const u16* buffer) const {
             if (count == 0)
                 return true;
-
             if (!buffer || !port || sector_size == 0)
                 return false;
 

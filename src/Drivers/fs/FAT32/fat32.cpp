@@ -35,7 +35,7 @@ namespace fs::FAT32 {
             }
 
             // Read its BPB
-            if (!device->read_bytes(fat->gpt_partition.starting_lba, sizeof(BPB), reinterpret_cast<u16 *>(&fat->bpb))) {
+            if (!device->read_bytes(fat->gpt_partition.starting_lba, 0, sizeof(BPB), reinterpret_cast<u16 *>(&fat->bpb))) {
                 heap::free_align(fat);
                 log::warn("[ FAT32 ] Failed to read BPB: lba=%l size=%u", static_cast<uint64_t>(fat->gpt_partition.starting_lba), sizeof(BPB));
                 continue;
@@ -92,7 +92,7 @@ namespace fs::FAT32 {
 
         auto *buffer = static_cast<file_entry *>(heap::malloc_align(cluster_size, 0x1000));
 
-        if (!device->read_bytes(lba, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
+        if (!device->read_bytes(lba, 0, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
             heap::free_align(buffer);
             log::error("[ FAT32 ] Failed to read cluster: lba=%l cluster_size=%u", lba, cluster_size);
             return;
@@ -217,7 +217,7 @@ namespace fs::FAT32 {
 
         auto *buffer = static_cast<uint8_t *>(heap::malloc_align(cluster_size, 0x1000));
 
-        if (!device->read_bytes(lba, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
+        if (!device->read_bytes(lba, 0, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
             heap::free_align(buffer);
             log::error("[ FAT32 ] Failed to read cluster: lba=%l cluster_size=%u", lba, cluster_size);
             return;

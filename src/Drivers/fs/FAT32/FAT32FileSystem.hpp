@@ -13,6 +13,8 @@ namespace fs {
         uint64_t root_cluster = 0;
         uint64_t cluster_size = 0;
         uint64_t root_lba = 0;
+        uint64_t data_sectors = 0;
+        uint64_t max_cluster = 0;
 
         std::vector<FAT32File> files;
 
@@ -20,7 +22,9 @@ namespace fs {
         bool mount(drivers::ahci::ahci_device &dev, const FAT32::fat_info& part);
         vfs::FileObject *open(const char *path, int flags) override;
 
-        bool get_next_cluster(uint64_t cluster, uint64_t *next);
+        bool get_next_cluster(uint64_t cluster, uint64_t *next) const;
+        bool find_free_cluster(uint64_t *cluster) const;
+        bool set_next_cluster(uint64_t cluster, uint32_t value) const;
         [[nodiscard]] uint64_t calculate_lba(const uint32_t cluster) const {
             return cluster >= 2 ? fat.data_start + static_cast<uint64_t>(cluster - 2) * fat.bpb.sectors_per_cluster : 0;
         }
