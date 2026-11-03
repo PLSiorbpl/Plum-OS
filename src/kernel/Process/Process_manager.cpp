@@ -112,6 +112,9 @@ namespace vfs {
     }
 
     int alloc_fd(Thread& process, OpenFile* file) {
+        if (!file)
+            return -1;
+
         for (int fd = 0; fd < MAX_FDS; fd++) {
             if (process.fd_table[fd].file == nullptr) {
                 process.fd_table[fd].file = file;
@@ -119,6 +122,15 @@ namespace vfs {
             }
         }
 
+        return -1;
+    }
+
+    int release_fd(Thread& process, const unsigned int fd) {
+        if (fd < MAX_FDS) {
+            process.fd_table[fd].file = nullptr;
+            process.fd_table[fd].flags = 0;
+            return 1;
+        }
         return -1;
     }
 
@@ -134,7 +146,7 @@ namespace vfs {
         file->object = object;
         file->position = 0;
         file->flags = flags;
-        file->ref_count++;
+        file->ref_count = 1;
 
         return file;
     }
@@ -143,7 +155,7 @@ namespace vfs {
         if (!file)
             return;
 
-        if (--file->ref_count != 0)
+        if (--file->ref_count > 0)
             return;
 
         if (file->object)

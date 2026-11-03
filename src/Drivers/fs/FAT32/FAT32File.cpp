@@ -221,4 +221,10 @@ namespace fs {
         }
         return 0;
     }
+
+    void FAT32File::close() {
+        if (!filesystem)
+            return;
+        filesystem->close(this);
+    }
 }

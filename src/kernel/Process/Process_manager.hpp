@@ -27,6 +27,7 @@ namespace vfs {
     extern std::vector<Thread> Threads;
 
     int alloc_fd(Thread& process, OpenFile* file);
+    int release_fd(Thread& process, unsigned int fd);
     OpenFile* create_open_file(FileObject* object, uint32_t flags);
     void release_open_file(OpenFile* file);
 

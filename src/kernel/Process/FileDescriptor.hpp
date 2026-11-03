@@ -53,7 +53,7 @@ namespace vfs {
         uint64_t position = 0;
         uint32_t flags = 0;
 
-        uint32_t ref_count = 0;
+        int32_t ref_count = 0;
     };
 
     struct FDEntry {

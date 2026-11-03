@@ -8,6 +8,7 @@ enum class syscall_id : u64 {
     read = 0,
     write = 1,
     open = 2,
+    close = 3,
     stat = 4,
     fstat = 5,
     lstat = 6,
@@ -68,6 +69,10 @@ inline u64 sys_read(const unsigned int fd, const char *buf, const size_t count) 
 
 inline u64 sys_open(const char *filename, const int flags, const int mode) {
     return syscall((u64)syscall_id::open, reinterpret_cast<u64>(filename), flags, mode);
+}
+
+inline u64 sys_close(const unsigned int fd) {
+    return syscall((u64)syscall_id::close, fd);
 }
 
 inline u64 sys_stat(const char *filename, vfs::FileStat *statbuf) {

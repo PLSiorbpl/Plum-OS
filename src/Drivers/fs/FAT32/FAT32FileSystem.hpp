@@ -2,6 +2,7 @@
 #include "fat32.hpp"
 #include "Drivers/achi/ahci_device.h"
 #include "kernel/Process/FileDescriptor.hpp"
+#include "std/unique.hpp"
 
 namespace fs {
     class FAT32File;
@@ -16,7 +17,7 @@ namespace fs {
         uint64_t data_sectors = 0;
         uint64_t max_cluster = 0;
 
-        std::vector<FAT32File> files;
+        std::vector<std::unique_ptr<FAT32File>> files;
 
     public:
         bool mount(drivers::ahci::ahci_device &dev, const FAT32::fat_info& part);
@@ -30,6 +31,7 @@ namespace fs {
         }
         [[nodiscard]] uint64_t get_cluster_size() const { return cluster_size; }
         [[nodiscard]] drivers::ahci::ahci_device *get_dev() const { return device; }
+        void close(const FAT32File *file);
     };
 
     class FAT32File : public vfs::FileObject {
@@ -54,5 +56,6 @@ namespace fs {
         [[nodiscard]] bool is_directory() const override { return false; }
         int stat(vfs::FileStat *info) const override;
         int truncate(uint64_t lenght) override;
+        void close() override;
     };
 }

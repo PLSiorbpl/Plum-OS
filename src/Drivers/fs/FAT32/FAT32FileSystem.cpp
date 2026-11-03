@@ -91,10 +91,11 @@ namespace fs {
                 continue;
             if (entry[i].attributes & 0x20) { // File
                 if (std::strcmp(long_name, path) == 0) {
-                    files.push_back(FAT32File(this, entry[i], i * sizeof(FAT32::file_entry), root_lba));
+                    auto ptr = std::make_unique<FAT32File>(this, entry[i], i * sizeof(FAT32::file_entry), root_lba);
+                    files.push_back(std::move(ptr));
                     heap::free(buffer);
 
-                    return &files.back();
+                    return files.back().get();
                 }
             }
 
@@ -230,5 +231,15 @@ namespace fs {
         }
 
         return succes;
+    }
+
+    void FAT32FileSystem::close(const FAT32File *file) {
+        if (!file) return;
+        for (int i = 0; i < files.size(); i++) {
+            if (files[i].get() == file) {
+                files.erase(i);
+                return;
+            }
+        }
     }
 }

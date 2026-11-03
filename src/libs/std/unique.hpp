@@ -1,4 +1,5 @@
 #pragma once
+#include "forward.hpp"
 
 namespace std {
     template<typename T>
@@ -36,8 +37,8 @@ namespace std {
         explicit operator bool() const { return ptr != nullptr; }
     };
 
-    template<typename T>
-    unique_ptr<T> make_unique() {
-        return unique_ptr<T>(new T());
+    template<typename T, typename... Args>
+    unique_ptr<T> make_unique(Args&&... args) {
+        return unique_ptr<T>(new T(forward<Args>(args)...));
     }
 }

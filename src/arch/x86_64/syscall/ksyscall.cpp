@@ -7,7 +7,7 @@
 u64 kwrite(const unsigned int fd, const char *buf, const size_t size) {
     auto process = vfs::get_thread();
 
-    if (fd < 0 || fd >= vfs::MAX_FDS)
+    if (fd >= vfs::MAX_FDS)
         return -1;
 
     vfs::OpenFile* file = process->fd_table[fd].file;
@@ -21,7 +21,7 @@ u64 kwrite(const unsigned int fd, const char *buf, const size_t size) {
 u64 kread(const unsigned int fd, void *buf, const size_t size) {
     auto process = vfs::get_thread();
 
-    if (fd < 0 || fd >= vfs::MAX_FDS)
+    if (fd >= vfs::MAX_FDS)
         return -1;
 
     vfs::OpenFile* file = process->fd_table[fd].file;
@@ -54,6 +54,23 @@ u64 kopen(const char *path, const int flags, const int mode) {
     return fd;
 }
 
+u64 kclose(unsigned int fd) {
+    auto process = vfs::get_thread();
+
+    if (fd >= vfs::MAX_FDS)
+        return -1;
+
+    vfs::OpenFile* file = process->fd_table[fd].file;
+
+    if (!file || !file->object)
+        return -1;
+
+    vfs::release_fd(*process, fd);
+    vfs::release_open_file(file);
+
+    return 0;
+}
+
 u64 kstat(const char *filename, vfs::FileStat *statbuf) {
     vfs::FileObject* object = vfs::vfs.open(filename, 0);
     if (!object)
@@ -67,7 +84,7 @@ u64 kstat(const char *filename, vfs::FileStat *statbuf) {
 u64 kfstat(unsigned int fd, vfs::FileStat *statbuf) {
     auto process = vfs::get_thread();
 
-    if (fd < 0 || fd >= vfs::MAX_FDS)
+    if (fd >= vfs::MAX_FDS)
         return -1;
 
     const vfs::OpenFile* file = process->fd_table[fd].file;
@@ -91,7 +108,7 @@ u64 klstat(const char *filename, vfs::FileStat *statbuf) {
 u64 klseek(const unsigned int fd, const int64_t offset, const unsigned int whence) {
     auto process = vfs::get_thread();
 
-    if (fd < 0 || fd >= vfs::MAX_FDS)
+    if (fd >= vfs::MAX_FDS)
         return -1;
 
     vfs::OpenFile* file = process->fd_table[fd].file;
@@ -115,7 +132,7 @@ u64 ktruncate(const char *filename, uint64_t lenght) {
 u64 kftruncate(unsigned int fd, uint64_t lenght) {
     auto process = vfs::get_thread();
 
-    if (fd < 0 || fd >= vfs::MAX_FDS)
+    if (fd >= vfs::MAX_FDS)
         return -1;
 
     vfs::OpenFile* file = process->fd_table[fd].file;

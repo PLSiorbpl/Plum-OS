@@ -41,6 +41,10 @@ extern "C" u64 dispatch_syscall(syscall_regs *regs) {
         case syscall_id::open:
             return kopen((char *)regs->arg1, regs->arg2, regs->arg3);
 
+        // unsigned int fd
+        case syscall_id::close:
+            return kclose(regs->arg1);
+
         // char *filename, vfs::FileStat *statbuf
         case syscall_id::stat:
             return kstat(reinterpret_cast<char *>(regs->arg1), reinterpret_cast<vfs::FileStat *>(regs->arg2));
