@@ -6,6 +6,7 @@
 
 namespace fs {
     class FAT32File;
+#define EOF 0x0FFFFFFF
 
     class FAT32FileSystem : public vfs::FileSystem {
         drivers::ahci::ahci_device *device = nullptr;
@@ -25,7 +26,7 @@ namespace fs {
 
         bool get_next_cluster(uint64_t cluster, uint64_t *next) const;
         bool find_free_cluster(uint64_t *cluster) const;
-        bool set_next_cluster(uint64_t cluster, uint32_t value) const;
+        bool set_cluster(uint64_t cluster, uint32_t value) const;
         [[nodiscard]] uint64_t calculate_lba(const uint32_t cluster) const {
             return cluster >= 2 ? fat.data_start + static_cast<uint64_t>(cluster - 2) * fat.bpb.sectors_per_cluster : 0;
         }

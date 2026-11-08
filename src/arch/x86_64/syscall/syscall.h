@@ -13,6 +13,8 @@ enum class syscall_id : u64 {
     fstat = 5,
     lstat = 6,
     lseek = 8,
+    dup = 32,
+    dup2 = 33,
     nanosleep = 35,
     exit = 60,
     truncate = 76,
@@ -91,12 +93,20 @@ inline u64 sys_lseek(const unsigned int fd, const int64_t offset, const unsigned
     return syscall((u64)syscall_id::lseek, fd, offset, whence);
 }
 
-inline void sys_exit(const int status) {
-    syscall(static_cast<u64>(syscall_id::exit), status);
+inline u64 sys_dup(const unsigned int fd) {
+    return syscall((u64)syscall_id::close, fd);
+}
+
+inline u64 sys_dup2(const unsigned int oldfd, const unsigned int newfd) {
+    return syscall((u64)syscall_id::close, oldfd, newfd);
 }
 
 inline void sys_sleep(const u64 milliseconds) {
     syscall(static_cast<u64>(syscall_id::nanosleep), milliseconds);
+}
+
+inline void sys_exit(const int status) {
+    syscall(static_cast<u64>(syscall_id::exit), status);
 }
 
 inline u64 sys_truncate(const char *filename, uint64_t lenght) {

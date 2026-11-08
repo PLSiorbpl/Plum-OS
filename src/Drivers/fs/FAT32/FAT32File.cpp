@@ -39,8 +39,23 @@ namespace fs {
             if (!filesystem->get_next_cluster(cluster, &next))
                 return -1;
 
-            if (next == 0)
-                return -1;
+            if (next == 0) {
+                // Allocate new cluster
+                if (!filesystem->find_free_cluster(&next)) {
+                    return -1;
+                }
+                if (!filesystem->set_cluster(cluster, next)) {
+                    return -1;
+                }
+                if (!filesystem->set_cluster(next, EOF)) {
+                    return -1;
+                }
+                auto buf = static_cast<uint16_t *>(heap::malloc(cluster_size));
+                memset(buf, 0, cluster_size);
+                if (!filesystem->get_dev()->write_bytes(next, 0, cluster_size, buf)) {
+                    return -1;
+                }
+            }
 
             cluster = next;
         }
@@ -69,8 +84,23 @@ namespace fs {
                     return written > 0 ? static_cast<int64_t>(written) : -1;
                 }
 
-                if (next == 0)
-                    return -1;
+                if (next == 0) {
+                    // Allocate new cluster
+                    if (!filesystem->find_free_cluster(&next)) {
+                        return -1;
+                    }
+                    if (!filesystem->set_cluster(cluster, next)) {
+                        return -1;
+                    }
+                    if (!filesystem->set_cluster(next, EOF)) {
+                        return -1;
+                    }
+                    auto buf = static_cast<uint16_t *>(heap::malloc(cluster_size));
+                    memset(buf, 0, cluster_size);
+                    if (!filesystem->get_dev()->write_bytes(next, 0, cluster_size, buf)) {
+                        return -1;
+                    }
+                }
 
                 cluster = next;
             }

@@ -186,7 +186,13 @@ namespace fs {
         return false;
     }
 
-    bool FAT32FileSystem::set_next_cluster(const uint64_t cluster, uint32_t value) const {
+    /**
+     * @brief Set cluster to value (EOF, next_cluster)
+     * @param cluster
+     * @param value
+     * @return success - true | failed - false
+     */
+    bool FAT32FileSystem::set_cluster(const uint64_t cluster, uint32_t value) const {
         if (!device || fat.bpb.bytes_per_sector == 0 || fat.bpb.num_of_FATs == 0 || fat.bpb.ebpb.sectors_per_FAT == 0 || cluster < 2 || cluster > max_cluster)
             return false;
 

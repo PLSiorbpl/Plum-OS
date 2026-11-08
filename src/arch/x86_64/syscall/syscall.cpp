@@ -61,6 +61,14 @@ extern "C" u64 dispatch_syscall(syscall_regs *regs) {
         case syscall_id::lseek:
             return klseek(regs->arg1, regs->arg2, regs->arg3);
 
+        // unsigned int fd
+        case syscall_id::dup:
+            return kdup(regs->arg1);
+
+        // unsigned int oldfd, unsigned int newfd
+        case syscall_id::dup2:
+            return kdup2(regs->arg1, regs->arg2);
+
         // int status
         case syscall_id::exit:
             vfs::exit_current();

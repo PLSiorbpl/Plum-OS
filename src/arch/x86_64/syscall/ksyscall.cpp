@@ -142,3 +142,48 @@ u64 kftruncate(unsigned int fd, uint64_t lenght) {
 
     return file->object->truncate(lenght);
 }
+
+u64 kdup(unsigned int fd) {
+    auto process = vfs::get_thread();
+
+    if (fd >= vfs::MAX_FDS)
+        return -1;
+
+    vfs::OpenFile* file = process->fd_table[fd].file;
+
+    if (!file || !file->object)
+        return -1;
+
+    int newfd = alloc_fd(*process, file);
+    if (newfd < 0)
+        return -1;
+    file->ref_count++;
+    process->fd_table[newfd].flags = process->fd_table[fd].flags;;
+
+    return newfd;
+}
+
+u64 kdup2(unsigned int oldfd, unsigned int newfd) {
+    auto process = vfs::get_thread();
+
+    if (oldfd >= vfs::MAX_FDS || newfd >= vfs::MAX_FDS)
+        return -1;
+
+    if (oldfd == newfd)
+        return oldfd;
+
+    vfs::OpenFile* file = process->fd_table[oldfd].file;
+
+    if (!file || !file->object)
+        return -1;
+
+    auto &newfile = process->fd_table[newfd];
+    if (newfile.file)
+        kclose(newfd);
+
+    file->ref_count++;
+    newfile.file = file;
+    newfile.flags = process->fd_table[oldfd].flags;
+
+    return newfd;
+}
