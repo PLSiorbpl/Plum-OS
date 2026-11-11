@@ -1,33 +1,9 @@
 #pragma once
 #include "std/types.hpp"
 #include "std/vector.hpp"
-
-enum class SeekMode : uint8_t {
-    SEEK_SET = 0,
-    SEEK_CUR = 1,
-    SEEK_END = 2,
-};
+#include "fs_types.hpp"
 
 namespace vfs {
-    constexpr size_t MAX_FDS = 64;
-
-    enum class FileType : uint8_t {
-        Unknown,
-        Regular,
-        Directory,
-        Device,
-        Pipe,
-        Symlink
-    };
-
-    struct FileStat {
-        uint64_t size;
-        uint64_t created_time;
-        uint64_t modified_time;
-        uint32_t attributes;
-        uint8_t type;
-    };
-
     class FileObject {
     public:
         virtual ~FileObject() = default;
@@ -38,13 +14,9 @@ namespace vfs {
         virtual int truncate(uint64_t lenght) { return -1; }
         [[nodiscard]] virtual int64_t size() const { return -1; }
         [[nodiscard]] virtual bool is_directory() const { return false; }
-        virtual int stat(FileStat* info) const { return -1; }
+        virtual int Stat(stat* info) const { return -1; }
+        virtual int getdents64(linux_dirent64 *dirent, unsigned int count) { return -1; }
         virtual void close() {}
-    };
-
-    struct BlockDevice {
-        const char* name;
-        FileObject* device;
     };
 
     struct OpenFile {

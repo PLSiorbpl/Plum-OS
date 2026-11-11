@@ -3,6 +3,7 @@
 #include "Drivers/GPU/OpenPL/OpenPL.hpp"
 #include "Drivers/Network/Sockets/tcp_socket.hpp"
 #include "kernel/Process/FileDescriptor.hpp"
+#include "kernel/Process/fs_types.hpp"
 
 enum class syscall_id : u64 {
     read = 0,
@@ -19,6 +20,7 @@ enum class syscall_id : u64 {
     exit = 60,
     truncate = 76,
     ftruncate = 77,
+    getdents64 = 217,
 
     pci = 100,
     heap = 101,
@@ -40,12 +42,12 @@ struct syscall_regs {
     u64 arg6; // r9
 };
 
-inline u64 syscall(u64 id, u64 a1 = 0, u64 a2 = 0, u64 a3 = 0, u64 a4 = 0, u64 a5 = 0, u64 a6 = 0) {
+inline i64 syscall(u64 id, u64 a1 = 0, u64 a2 = 0, u64 a3 = 0, u64 a4 = 0, u64 a5 = 0, u64 a6 = 0) {
     register u64 r10 asm("r10") = a4;
     register u64 r8  asm("r8")  = a5;
     register u64 r9  asm("r9")  = a6;
 
-    u64 ret;
+    i64 ret;
     asm volatile("syscall"
         : "=a"(ret)
         : "a"(id),
@@ -61,15 +63,15 @@ inline u64 syscall(u64 id, u64 a1 = 0, u64 a2 = 0, u64 a3 = 0, u64 a4 = 0, u64 a
     return ret;
 }
 
-inline u64 sys_write(const unsigned int fd, const char* buf, const size_t count) {
+inline i64 sys_write(const unsigned int fd, const char* buf, const size_t count) {
     return syscall((u64)syscall_id::write, fd, reinterpret_cast<u64>(buf), count);
 }
 
-inline u64 sys_read(const unsigned int fd, const char *buf, const size_t count) {
+inline i64 sys_read(const unsigned int fd, const char *buf, const size_t count) {
     return syscall((u64)syscall_id::read, fd, reinterpret_cast<u64>(buf), count);
 }
 
-inline u64 sys_open(const char *filename, const int flags, const int mode) {
+inline i64 sys_open(const char *filename, const int flags, const int mode) {
     return syscall((u64)syscall_id::open, reinterpret_cast<u64>(filename), flags, mode);
 }
 
@@ -77,15 +79,15 @@ inline u64 sys_close(const unsigned int fd) {
     return syscall((u64)syscall_id::close, fd);
 }
 
-inline u64 sys_stat(const char *filename, vfs::FileStat *statbuf) {
+inline u64 sys_stat(const char *filename, stat *statbuf) {
     return syscall((u64)syscall_id::stat, reinterpret_cast<u64>(filename), reinterpret_cast<u64>(statbuf));
 }
 
-inline u64 sys_fstat(const unsigned int fd, vfs::FileStat *statbuf) {
+inline u64 sys_fstat(const unsigned int fd, stat *statbuf) {
     return syscall((u64)syscall_id::fstat, fd, reinterpret_cast<u64>(statbuf));
 }
 
-inline u64 sys_lstat(const char *filename, vfs::FileStat *statbuf) {
+inline u64 sys_lstat(const char *filename, stat *statbuf) {
     return syscall((u64)syscall_id::lstat, reinterpret_cast<u64>(filename), reinterpret_cast<u64>(statbuf));
 }
 
@@ -109,12 +111,16 @@ inline void sys_exit(const int status) {
     syscall(static_cast<u64>(syscall_id::exit), status);
 }
 
-inline u64 sys_truncate(const char *filename, uint64_t lenght) {
-    return syscall((u64)syscall_id::ftruncate, reinterpret_cast<u64>(filename), lenght);
+inline u64 sys_truncate(const char *filename, const uint64_t length) {
+    return syscall((u64)syscall_id::ftruncate, reinterpret_cast<u64>(filename), length);
 }
 
-inline u64 sys_ftruncate(const unsigned int fd, uint64_t lenght) {
-    return syscall((u64)syscall_id::ftruncate, fd, lenght);
+inline u64 sys_ftruncate(const unsigned int fd, const uint64_t length) {
+    return syscall((u64)syscall_id::ftruncate, fd, length);
+}
+
+inline i64 sys_getdents64(const unsigned int fd, linux_dirent64 *dirent, const unsigned int count) {
+    return syscall((u64)syscall_id::getdents64, fd, reinterpret_cast<u64>(dirent), count);
 }
 
 inline void sys_pci_test() {

@@ -51,7 +51,7 @@ namespace fs::FAT32 {
                 fatfile_systems.push_back(FAT32FileSystem());
                 FAT32FileSystem *fat32_file_system = &fatfile_systems.back();
                 fat32_file_system->mount(*device, *fat);
-                vfs::vfs.mount("/", fat32_file_system);
+                //vfs::vfs.mount("/", fat32_file_system);
 
                 char oem_name[9];
                 for (int s = 0; s < 8; s++) {
@@ -64,13 +64,40 @@ namespace fs::FAT32 {
                     volume_string[s] = static_cast<char>(fat->bpb.ebpb.volume_label_string[s]);
                 }
                 volume_string[11] = '\0';
-
-                auto size = (u64)fat->bpb.large_sector_count * (u64)fat->bpb.bytes_per_sector;
-                log::info("&aFAT32 &fpartition: &emount&f=%s &eVolume&f=%s &esize&f=%l%s",
-                    "\"/\"", volume_string, size, std::format_size(size));
             }
 
             heap::free_align(fat);
+        }
+
+        vfs::FileObject *file = nullptr;
+        FAT32FileSystem *root_fs32 = nullptr;
+        for (auto &fat32_fs : fatfile_systems) {
+            file = fat32_fs.open("fstab", 0);
+            if (file) {
+                auto fat = fat32_fs.get_fat();
+                auto size = (u64)fat->bpb.large_sector_count * (u64)fat->bpb.bytes_per_sector;
+                file->close();
+                vfs::vfs.mount("/", &fat32_fs);
+                root_fs32 = &fat32_fs;
+                vfs::vfs.mount("/", &fat32_fs);
+                log::info("&aFAT32 &fpartition: &eMount&f=/ &esize&f=%l%s", size, std::format_size(size));
+                break;
+            }
+        }
+
+        uint8_t i = 0;
+        for (auto &fat32_fs : fatfile_systems) {
+            if (root_fs32 == &fat32_fs)
+                continue;
+            auto fat = fat32_fs.get_fat();
+            auto size = (u64)fat->bpb.large_sector_count * (u64)fat->bpb.bytes_per_sector;
+
+            char path[] = "/mnt/fat32/ ";
+            path[11] = '0' + (char)i;
+
+            vfs::vfs.mount(path, &fat32_fs);
+            log::info("&aFAT32 &fpartition: &eMount&f=%s &esize&f=%l%s", path, size, std::format_size(size));
+            i++;
         }
     }
 

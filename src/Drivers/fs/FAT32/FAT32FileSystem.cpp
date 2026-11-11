@@ -18,6 +18,19 @@ namespace fs {
     }
 
     FileObject *FAT32FileSystem::open(const char *path, int flags) {
+        if (path[0] == '\0') {
+            FAT32::file_entry entry = {};
+            entry.file_name[0] = '\0';
+            entry.attributes = 0x10;
+            entry.file_size = 0;
+            entry.first_cluster_high = (root_cluster >> 16) & 0xFFFF;
+            entry.first_cluster_low = root_cluster & 0xFFFF;
+            auto ptr = std::make_unique<FAT32Dir>(this, entry, 0, 0);
+            files.push_back(std::move(ptr));
+
+            return files.back().get();
+        }
+
         auto *buffer = static_cast<FAT32::file_entry *>(heap::malloc(cluster_size));
 
         if (!device->read_bytes(root_lba, 0, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
@@ -29,11 +42,8 @@ namespace fs {
         char long_name[255] = {};
         const auto *entry = buffer;
         for (size_t i = 0; i < cluster_size/sizeof(FAT32::file_entry); i++) {
-            char short_name[12];
-            for (int n = 0; n < 11; n++) {
-                short_name[n] = entry[i].file_name[n];
-            }
-            short_name[11] = '\0';
+            char short_name[13];
+            parse_short_name(short_name, &entry[i]);
 
             if (entry[i].file_name[0] == 0x0)
                 break;
@@ -42,53 +52,18 @@ namespace fs {
 
             // Long file name
             if (entry[i].attributes == 0x0F) {
-                auto *l_name = (FAT32::long_file_name *)&entry[i];
-                uint8_t idx = ((l_name->order & 0x1F) - 1) * 13;
-                if (idx >= 255) {
-                    long_name[254] = '\0';
-                    continue;
-                }
-
-                for (int id = 0; id < 5; id++) {
-                    if (l_name->name_1[id] == 0xFFFF) // garbage
-                        continue;
-                    if (l_name->name_1[id] == 0x0000) { // end of name
-                        long_name[idx] = '\0';
-                        break;
-                    }
-
-                    long_name[idx] = static_cast<char>(l_name->name_1[id]);
-                    idx++;
-                }
-
-                for (int id = 0; id < 6; id++) {
-                    if (l_name->name_2[id] == 0xFFFF) // garbage
-                        continue;
-                    if (l_name->name_2[id] == 0x0000) { // end of name
-                        long_name[idx] = '\0';
-                        break;
-                    }
-
-                    long_name[idx] = static_cast<char>(l_name->name_2[id]);
-                    idx++;
-                }
-
-                for (int id = 0; id < 2; id++) {
-                    if (l_name->name_3[id] == 0xFFFF) // garbage
-                        continue;
-                    if (l_name->name_3[id] == 0x0000) { // end of name
-                        long_name[idx] = '\0';
-                        break;
-                    }
-
-                    long_name[idx] = static_cast<char>(l_name->name_3[id]);
-                    idx++;
-                }
+                parse_lfn(long_name, (FAT32::long_file_name *)&entry[i]);
                 continue;
             }
 
             if (entry[i].attributes & 0x10) // Dir
-                continue;
+                if (std::strcmp(long_name, path) == 0) {
+                    auto ptr = std::make_unique<FAT32Dir>(this, entry[i], i * sizeof(FAT32::file_entry), root_lba);
+                    files.push_back(std::move(ptr));
+                    heap::free(buffer);
+
+                    return files.back().get();
+                }
             if (entry[i].attributes & 0x20) { // File
                 if (std::strcmp(long_name, path) == 0) {
                     auto ptr = std::make_unique<FAT32File>(this, entry[i], i * sizeof(FAT32::file_entry), root_lba);
@@ -105,6 +80,74 @@ namespace fs {
         heap::free(buffer);
 
         return nullptr;
+    }
+
+    void FAT32FileSystem::parse_short_name(char *buf, const FAT32::file_entry *entry) {
+        size_t pos = 0;
+        for (int n = 0; n < 8 && entry->file_name[n] != ' '; n++)
+            buf[pos++] = entry->file_name[n];
+
+        int ext_len = 3;
+        while (ext_len > 0 && entry->file_name[8 + ext_len - 1] == ' ')
+            ext_len--;
+
+        if (ext_len > 0) {
+            buf[pos++] = '.';
+
+            for (int n = 0; n < ext_len; n++)
+                buf[pos++] = entry->file_name[8 + n];
+        }
+
+        buf[pos] = '\0';
+    }
+
+    /**
+     * @brief Parses long_file_name
+     * @param buf char buffer for long_file_name (max char buf[255])
+     * @param entry long_file_name entry
+     */
+    void FAT32FileSystem::parse_lfn(char *buf, const FAT32::long_file_name *entry) {
+        uint8_t idx = ((entry->order & 0x1F) - 1) * 13;
+        if (idx >= 255) {
+            buf[254] = '\0';
+            return;
+        }
+
+        for (int id = 0; id < 5; id++) {
+            if (entry->name_1[id] == 0xFFFF) // garbage
+                continue;
+            if (entry->name_1[id] == 0x0000) { // end of name
+                buf[idx] = '\0';
+                break;
+            }
+
+            buf[idx] = static_cast<char>(entry->name_1[id]);
+            idx++;
+        }
+
+        for (int id = 0; id < 6; id++) {
+            if (entry->name_2[id] == 0xFFFF) // garbage
+                continue;
+            if (entry->name_2[id] == 0x0000) { // end of name
+                buf[idx] = '\0';
+                break;
+            }
+
+            buf[idx] = static_cast<char>(entry->name_2[id]);
+            idx++;
+        }
+
+        for (int id = 0; id < 2; id++) {
+            if (entry->name_3[id] == 0xFFFF) // garbage
+                continue;
+            if (entry->name_3[id] == 0x0000) { // end of name
+                buf[idx] = '\0';
+                break;
+            }
+
+            buf[idx] = static_cast<char>(entry->name_3[id]);
+            idx++;
+        }
     }
 
     bool FAT32FileSystem::get_next_cluster(const uint64_t cluster, uint64_t *next) const {
@@ -239,7 +282,7 @@ namespace fs {
         return succes;
     }
 
-    void FAT32FileSystem::close(const FAT32File *file) {
+    void FAT32FileSystem::close(const FileObject *file) {
         if (!file) return;
         for (int i = 0; i < files.size(); i++) {
             if (files[i].get() == file) {

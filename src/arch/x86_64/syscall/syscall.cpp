@@ -47,15 +47,15 @@ extern "C" u64 dispatch_syscall(syscall_regs *regs) {
 
         // char *filename, vfs::FileStat *statbuf
         case syscall_id::stat:
-            return kstat(reinterpret_cast<char *>(regs->arg1), reinterpret_cast<vfs::FileStat *>(regs->arg2));
+            return kstat(reinterpret_cast<char *>(regs->arg1), reinterpret_cast<stat *>(regs->arg2));
 
         // unsigned int fd, vfs::FileStat *statbuf
         case syscall_id::fstat:
-            return kfstat(regs->arg1, reinterpret_cast<vfs::FileStat *>(regs->arg2));
+            return kfstat(regs->arg1, reinterpret_cast<stat *>(regs->arg2));
 
         // char *filename, vfs::FileStat *statbuf
         case syscall_id::lstat:
-            return klstat(reinterpret_cast<char *>(regs->arg1), reinterpret_cast<vfs::FileStat *>(regs->arg2));
+            return klstat(reinterpret_cast<char *>(regs->arg1), reinterpret_cast<stat *>(regs->arg2));
 
         // unsigned int fd, uint64_t offset, unsigned int whence
         case syscall_id::lseek:
@@ -86,6 +86,10 @@ extern "C" u64 dispatch_syscall(syscall_regs *regs) {
         // unsigned int fd, uint64_t lenght
         case syscall_id::ftruncate:
             return kftruncate(regs->arg1, regs->arg2);
+
+        // unsigned int fd, linux_dirent64 *dirent, unsigned int count
+        case syscall_id::getdents64:
+            return kgetdents64(regs->arg1, (linux_dirent64 *)regs->arg2, regs->arg3);
 
         case syscall_id::pci:
             PCI::Test();

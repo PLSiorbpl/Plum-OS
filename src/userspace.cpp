@@ -16,8 +16,8 @@ void list_commands(int argc, char** argv) {
 }
 
 extern "C" void user_space_main() {
-    OpenPL::Framebuffer framebuffer = ctx.create_framebuffer(0, 0);
-    ctx.bind_framebuffer(framebuffer);
+    //OpenPL::Framebuffer framebuffer = ctx.create_framebuffer(0, 0);
+    //ctx.bind_framebuffer(framebuffer);
     sys_swap_framebuffer();
     sys_open("/dev/stdout", 0, 0);
     sys_open("/dev/stdin", 0, 0);

@@ -12,14 +12,16 @@ namespace vfs {
         Terminated
     };
 
+    constexpr size_t MAX_FDS = 128;
+
     struct Thread {
-        IDT::ISR_Registers *regs;
-        uint64_t kernel_stack;
-        uint64_t user_stack;
+        IDT::ISR_Registers *regs = nullptr;
+        uint64_t kernel_stack = 0;
+        uint64_t user_stack = 0;
 
         ThreadState state = ThreadState::Ready;
 
-        FDEntry fd_table[MAX_FDS];
+        FDEntry fd_table[MAX_FDS] = {};
 
         uint8_t priority = 3;
         uint8_t work = 0;

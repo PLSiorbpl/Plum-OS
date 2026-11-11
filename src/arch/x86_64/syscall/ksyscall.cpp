@@ -71,17 +71,17 @@ u64 kclose(unsigned int fd) {
     return 0;
 }
 
-u64 kstat(const char *filename, vfs::FileStat *statbuf) {
+u64 kstat(const char *filename, stat *statbuf) {
     vfs::FileObject* object = vfs::vfs.open(filename, 0);
     if (!object)
         return -1;
 
-    const auto ret = object->stat(statbuf);
+    const auto ret = object->Stat(statbuf);
     object->close();
     return ret;
 }
 
-u64 kfstat(unsigned int fd, vfs::FileStat *statbuf) {
+u64 kfstat(unsigned int fd, stat *statbuf) {
     auto process = vfs::get_thread();
 
     if (fd >= vfs::MAX_FDS)
@@ -92,15 +92,15 @@ u64 kfstat(unsigned int fd, vfs::FileStat *statbuf) {
     if (!file || !file->object)
         return -1;
 
-    return file->object->stat(statbuf);
+    return file->object->Stat(statbuf);
 }
 
-u64 klstat(const char *filename, vfs::FileStat *statbuf) {
+u64 klstat(const char *filename, stat *statbuf) {
     vfs::FileObject* object = vfs::vfs.open(filename, 0);
     if (!object)
         return -1;
 
-    const auto ret = object->stat(statbuf);
+    const auto ret = object->Stat(statbuf);
     object->close();
     return ret;
 }
@@ -186,4 +186,23 @@ u64 kdup2(unsigned int oldfd, unsigned int newfd) {
     newfile.flags = process->fd_table[oldfd].flags;
 
     return newfd;
+}
+
+u64 kgetdents64(const unsigned int fd, linux_dirent64 *dirent, const unsigned int count) {
+    auto process = vfs::get_thread();
+
+    if (count == 0)
+        return 0;
+    if (!dirent)
+        return -1;
+
+    if (fd >= vfs::MAX_FDS)
+        return -1;
+
+    vfs::OpenFile* file = process->fd_table[fd].file;
+
+    if (!file || !file->object)
+        return -1;
+
+    return file->object->getdents64(dirent, count);
 }

@@ -2,6 +2,7 @@
 #include "Data_structures.hpp"
 #include "std/types.hpp"
 #include "kernel/Process/FileDescriptor.hpp"
+#include "std/string.h"
 
 using namespace vfs;
 
@@ -183,12 +184,11 @@ namespace fs {
         return static_cast<int64_t>(copied);
     }
 
-    int FAT32File::stat(FileStat *info) const {
-        info->size = file.file_size;
-        info->type = static_cast<u64>(FileType::Regular);
-        info->attributes = file.attributes;
-        info->created_time = file.creation_time;
-        info->modified_time = file.last_modification_time;
+    int FAT32File::Stat(stat *info) const {
+        info->st_size = file.file_size;
+        info->st_mode = S_IFREG;
+        info->st_atime = file.creation_time;
+        info->st_mtime = file.last_modification_time;
         return 0;
     }
 
@@ -198,19 +198,19 @@ namespace fs {
 
         int64_t base = 0;
 
-        switch (static_cast<SeekMode>(whence)) {
-            case SeekMode::SEEK_SET:
+        switch (whence) {
+            case SEEK_SET:
                 base = 0;
                 break;
 
-            case SeekMode::SEEK_CUR:
+            case SEEK_CUR:
                 if (position > INT64_MAX)
                     return -1;
 
                 base = static_cast<int64_t>(position);
                 break;
 
-            case SeekMode::SEEK_END:
+            case SEEK_END:
                 if (file.file_size > INT64_MAX)
                     return -1;
 
@@ -253,6 +253,143 @@ namespace fs {
     }
 
     void FAT32File::close() {
+        if (!filesystem)
+            return;
+        filesystem->close(this);
+    }
+
+    FAT32Dir::FAT32Dir(FAT32FileSystem *filesystem, const FAT32::file_entry &file, const uint64_t directory_entry_offset, const uint64_t directory_entry_lba)
+    : filesystem(filesystem), file(file), directory_entry_offset(directory_entry_offset), directory_entry_lba(directory_entry_lba) {
+        first_cluster = static_cast<uint32_t>(file.first_cluster_low) | (static_cast<uint32_t>(file.first_cluster_high) << 16);
+        start_lba = filesystem->calculate_lba(first_cluster);
+        cluster_size = filesystem->get_cluster_size();
+    }
+
+    bool FAT32Dir::update_Dir_entry() {
+        if (!filesystem || !filesystem->get_dev())
+            return false;
+        if (directory_entry_lba == 0) return true;
+
+        if (!filesystem->get_dev()->write_bytes(directory_entry_lba, directory_entry_offset, sizeof(FAT32::file_entry), reinterpret_cast<uint16_t *>(&file))) {
+            return false;
+        }
+        return true;
+    }
+
+    int FAT32Dir::getdents64(linux_dirent64 *dirent, const unsigned int count) {
+        if (!filesystem || !filesystem->get_dev() || !dirent || cluster_size == 0 || start_lba < 2)
+            return -1;
+
+        if (count == 0)
+            return 0;
+
+        auto* entry = static_cast<FAT32::file_entry *>(heap::malloc(cluster_size));
+        if (!entry) return -1;
+
+        if (!filesystem->get_dev()->read_bytes(start_lba, 0, cluster_size, (uint16_t *)entry)) {
+            heap::free(entry);
+            return -1;
+        }
+
+        int used_bytes = 0;
+        char long_name[256] = {};
+        for (size_t i = 0; i < cluster_size/sizeof(FAT32::file_entry); i++) {
+            if (entry[i].file_name[0] == 0x0)
+                break;
+            if (entry[i].file_name[0] == 0xE5) // Deleted file
+                continue;
+
+            if (i < position) continue;
+
+            char short_name[13] = {};
+            FAT32FileSystem::parse_short_name(short_name, &entry[i]);
+
+            // Long file name
+            if (entry[i].attributes == 0x0F) {
+                FAT32FileSystem::parse_lfn(long_name, reinterpret_cast<FAT32::long_file_name *>(&entry[i]));
+                continue;
+            }
+
+            if (entry[i].attributes & 0x08) continue;
+
+            auto *current = reinterpret_cast<linux_dirent64 *>(reinterpret_cast<uint8_t *>(dirent) + used_bytes);
+
+            const size_t name_len = (long_name[0] != '\0' ? std::strlen(long_name) : std::strlen(short_name)) + 1;
+            size_t reclen = offsetof(linux_dirent64, d_name) + name_len;
+            reclen = (reclen + 7) & ~7;
+
+            if (used_bytes + reclen > count) break;
+
+            if (entry[i].attributes & 0x10) { // Dir
+                current->d_type = DT_DIR;
+            } else if (entry[i].attributes & 0x20) { // File
+                current->d_type = DT_REG;
+            } else continue;
+            used_bytes += reclen;
+
+            current->d_ino = i;
+            current->d_reclen = reclen;
+            current->d_off = i;
+            if (long_name[0] == '\0')
+                memcpy(current->d_name, short_name, name_len);
+            else
+                memcpy(current->d_name, long_name, name_len);
+
+            if (long_name[0] != '\0')
+                long_name[0] = '\0';
+
+            position = i + 1;
+        }
+
+        heap::free(entry);
+        return used_bytes;
+    }
+
+    int64_t FAT32Dir::seek(const int64_t offset, unsigned int whence) {
+        if (!filesystem)
+            return -1;
+
+        int64_t base = 0;
+
+        switch (whence) {
+            case SEEK_SET:
+                base = 0;
+                break;
+
+            case SEEK_CUR:
+                if (position > INT64_MAX)
+                    return -1;
+
+                base = static_cast<int64_t>(position);
+                break;
+
+            case SEEK_END:
+                if (file.file_size > INT64_MAX)
+                    return -1;
+
+                base = static_cast<int64_t>(cluster_size/sizeof(FAT32::file_entry));
+                break;
+
+            default:
+                return -1;
+        }
+
+        if (offset > 0 && base > INT64_MAX - offset)
+            return -1;
+        if (offset < 0 && base < INT64_MIN - offset)
+            return -1;
+        const int64_t new_position = base + offset;
+
+        if (new_position < 0 ||
+        static_cast<uint64_t>(new_position) > cluster_size/sizeof(FAT32::file_entry))
+            return -1;
+
+        position = static_cast<uint64_t>(new_position);
+
+        return new_position;
+    }
+
+    void FAT32Dir::close() {
         if (!filesystem)
             return;
         filesystem->close(this);

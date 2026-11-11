@@ -8,7 +8,7 @@
 #include "std/string.h"
 #include "User_Programs/MyCraft/main.hpp"
 
-Command commands[8] = {
+Command commands[9] = {
     {
         "http", [](int argc, char** argv) {
             int server_num = tsock::socket();
@@ -154,5 +154,51 @@ Command commands[8] = {
         "partitions", [](int argc, char** argv) {
             sys_list_parts();
         }
-    },
+    }, {
+        "ls", [](int argc, char** argv) {
+            const char* path = "/";
+            if (argc >= 2)
+                path = argv[1];
+
+            int fd = sys_open(path, 0, 0);
+
+            if (fd < 0) {
+                std::printf("&fls: &ccannot open directory\n");
+                return;
+            }
+
+            char buffer[4096];
+
+            while (true) {
+                int bytes = sys_getdents64(fd, (linux_dirent64 *)buffer, sizeof(buffer));
+
+                if (bytes < 0) {
+                    std::printf("&fls: &cgetdents failed\n");
+                    break;
+                }
+                if (bytes == 0)
+                    break;
+
+                int offset = 0;
+                while (offset < bytes) {
+                    auto* entry = reinterpret_cast<linux_dirent64*>(buffer + offset);
+
+                    if (entry->d_type == DT_DIR) {
+                        if (std::strcmp(entry->d_name, ".") == 0 || std::strcmp(entry->d_name, "..") == 0)
+                            std::printf("&d%s\t", std::Output::std_out, entry->d_name);
+                        else
+                            std::printf("&9%s\t", std::Output::std_out, entry->d_name);
+                    } else if (entry->d_type == DT_REG)
+                        std::printf("&a%s\t", std::Output::std_out, entry->d_name);
+                    else
+                        std::printf("&f%s\t", std::Output::std_out, entry->d_name);
+
+                    offset += entry->d_reclen;
+                }
+            }
+
+            sys_close(fd);
+            std::printf("\n");
+        }
+    }
 };

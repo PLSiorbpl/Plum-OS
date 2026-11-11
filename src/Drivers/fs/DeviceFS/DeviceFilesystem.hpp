@@ -6,8 +6,13 @@
 #include "std/unique.hpp"
 
 namespace fs {
+    struct BlockDevice {
+        const char* name;
+        vfs::FileObject* device;
+    };
+
     class DeviceFileSystem : public vfs::FileSystem {
-        std::vector<std::unique_ptr<vfs::BlockDevice>> devices;
+        std::vector<std::unique_ptr<BlockDevice>> devices;
 
     public:
         bool register_device(const char* name, vfs::FileObject* device);
