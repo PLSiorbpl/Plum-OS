@@ -13,6 +13,7 @@ namespace fs::FAT32 {
         fat32_manager() = default;
         ~fat32_manager();
         void init(drivers::ahci::ahci_device &dev);
+        void mount();
         static bool validate_fat32(const BPB &bpb);
     private:
 

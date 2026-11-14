@@ -17,4 +17,4 @@ inline uint64_t range(void *a, void *b) {
 
 void list_commands(int argc, char** argv);
 
-extern Command commands[9];
+extern Command commands[10];

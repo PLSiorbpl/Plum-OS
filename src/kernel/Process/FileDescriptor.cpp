@@ -26,7 +26,11 @@ namespace vfs {
                 return false;
         }
 
-        mounts.push_back({.path = path, .fs = fs});
+        Mount mount{};
+        std::strcpy(mount.path, path);
+        mount.fs = fs;
+
+        mounts.push_back(mount);
         return true;
     }
 
@@ -37,8 +41,6 @@ namespace vfs {
     FileObject *VFS::open(const char *path, const int flags) {
         if (!path || path[0] != '/')
             return nullptr;
-
-        //log::info("%s -> ", path);
 
         Mount* best = nullptr;
         size_t best_len = 0;
@@ -65,8 +67,6 @@ namespace vfs {
             relative = path + 1;
         else if (*relative == '/')
             relative++;
-
-        //log::info("%s", relative);
 
         return best->fs->open(relative, flags);
     }

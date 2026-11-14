@@ -8,7 +8,7 @@
 #include "std/string.h"
 #include "User_Programs/MyCraft/main.hpp"
 
-Command commands[9] = {
+Command commands[10] = {
     {
         "http", [](int argc, char** argv) {
             int server_num = tsock::socket();
@@ -199,6 +199,28 @@ Command commands[9] = {
 
             sys_close(fd);
             std::printf("\n");
+        }
+    }, {
+        "cat", [](int argc, char** argv) {
+            const char* path = "/";
+            if (argc >= 2)
+                path = argv[1];
+
+            int fd = sys_open(path, 0, 0);
+
+            if (fd < 0) {
+                std::printf("&fls: &ccannot open file\n");
+                return;
+            }
+
+            char buffer[4096];
+            buffer[4095] = '\0';
+            if (!sys_read(fd, buffer, 4095)) {
+                std::printf("&fcat: &ccant read file content");
+                return;
+            }
+
+            std::printf("%s\n", std::Output::std_out, buffer);
         }
     }
 };

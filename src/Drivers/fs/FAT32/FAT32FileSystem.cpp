@@ -41,23 +41,28 @@ namespace fs {
 
         char long_name[255] = {};
         const auto *entry = buffer;
+        char *name = nullptr;
         for (size_t i = 0; i < cluster_size/sizeof(FAT32::file_entry); i++) {
-            char short_name[13];
-            parse_short_name(short_name, &entry[i]);
 
             if (entry[i].file_name[0] == 0x0)
                 break;
             if (static_cast<uint8_t>(entry[i].file_name[0]) == 0xE5) // Deleted file
                 continue;
 
+            char short_name[13];
+            parse_short_name(short_name, &entry[i]);
+            if (long_name[0] == '\0')
+                name = short_name;
+
             // Long file name
             if (entry[i].attributes == 0x0F) {
                 parse_lfn(long_name, (FAT32::long_file_name *)&entry[i]);
+                name = long_name;
                 continue;
             }
 
             if (entry[i].attributes & 0x10) // Dir
-                if (std::strcmp(long_name, path) == 0) {
+                if (std::strcmp(name, path) == 0) {
                     auto ptr = std::make_unique<FAT32Dir>(this, entry[i], i * sizeof(FAT32::file_entry), root_lba);
                     files.push_back(std::move(ptr));
                     heap::free(buffer);
@@ -65,7 +70,7 @@ namespace fs {
                     return files.back().get();
                 }
             if (entry[i].attributes & 0x20) { // File
-                if (std::strcmp(long_name, path) == 0) {
+                if (std::strcmp(name, path) == 0) {
                     auto ptr = std::make_unique<FAT32File>(this, entry[i], i * sizeof(FAT32::file_entry), root_lba);
                     files.push_back(std::move(ptr));
                     heap::free(buffer);
@@ -84,8 +89,12 @@ namespace fs {
 
     void FAT32FileSystem::parse_short_name(char *buf, const FAT32::file_entry *entry) {
         size_t pos = 0;
-        for (int n = 0; n < 8 && entry->file_name[n] != ' '; n++)
-            buf[pos++] = entry->file_name[n];
+        for (int n = 0; n < 8 && entry->file_name[n] != ' '; n++) {
+            if (entry->rsvd_WindowsNT & 0x8)
+                buf[pos++] = static_cast<char>(std::tolower(entry->file_name[n]));
+            else
+                buf[pos++] = entry->file_name[n];
+        }
 
         int ext_len = 3;
         while (ext_len > 0 && entry->file_name[8 + ext_len - 1] == ' ')
@@ -94,8 +103,12 @@ namespace fs {
         if (ext_len > 0) {
             buf[pos++] = '.';
 
-            for (int n = 0; n < ext_len; n++)
-                buf[pos++] = entry->file_name[8 + n];
+            for (int n = 0; n < ext_len; n++) {
+                if (entry->rsvd_WindowsNT & 0x10)
+                    buf[pos++] = static_cast<char>(std::tolower(entry->file_name[8 + n]));
+                else
+                    buf[pos++] = entry->file_name[8 + n];
+            }
         }
 
         buf[pos] = '\0';
@@ -115,7 +128,7 @@ namespace fs {
 
         for (int id = 0; id < 5; id++) {
             if (entry->name_1[id] == 0xFFFF) // garbage
-                continue;
+                break;
             if (entry->name_1[id] == 0x0000) { // end of name
                 buf[idx] = '\0';
                 break;
@@ -127,7 +140,7 @@ namespace fs {
 
         for (int id = 0; id < 6; id++) {
             if (entry->name_2[id] == 0xFFFF) // garbage
-                continue;
+                break;
             if (entry->name_2[id] == 0x0000) { // end of name
                 buf[idx] = '\0';
                 break;
@@ -139,7 +152,7 @@ namespace fs {
 
         for (int id = 0; id < 2; id++) {
             if (entry->name_3[id] == 0xFFFF) // garbage
-                continue;
+                break;
             if (entry->name_3[id] == 0x0000) { // end of name
                 buf[idx] = '\0';
                 break;

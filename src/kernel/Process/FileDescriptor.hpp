@@ -40,7 +40,7 @@ namespace vfs {
     };
 
     struct Mount {
-        const char* path;
+        char path[64];
         FileSystem* fs;
     };
 

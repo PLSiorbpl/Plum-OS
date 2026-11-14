@@ -293,28 +293,37 @@ namespace fs {
 
         int used_bytes = 0;
         char long_name[256] = {};
+        char *name = nullptr;
         for (size_t i = 0; i < cluster_size/sizeof(FAT32::file_entry); i++) {
             if (entry[i].file_name[0] == 0x0)
                 break;
             if (entry[i].file_name[0] == 0xE5) // Deleted file
                 continue;
 
-            if (i < position) continue;
 
             char short_name[13] = {};
             FAT32FileSystem::parse_short_name(short_name, &entry[i]);
+            if (long_name[0] == '\0')
+                name = short_name;
 
             // Long file name
             if (entry[i].attributes == 0x0F) {
                 FAT32FileSystem::parse_lfn(long_name, reinterpret_cast<FAT32::long_file_name *>(&entry[i]));
+                name = long_name;
                 continue;
             }
 
             if (entry[i].attributes & 0x08) continue;
 
+            if (i < position) {
+                if (long_name[0] != '\0')
+                    long_name[0] = '\0';
+                continue;
+            }
+
             auto *current = reinterpret_cast<linux_dirent64 *>(reinterpret_cast<uint8_t *>(dirent) + used_bytes);
 
-            const size_t name_len = (long_name[0] != '\0' ? std::strlen(long_name) : std::strlen(short_name)) + 1;
+            const size_t name_len = std::strlen(name) + 1;
             size_t reclen = offsetof(linux_dirent64, d_name) + name_len;
             reclen = (reclen + 7) & ~7;
 
@@ -324,16 +333,13 @@ namespace fs {
                 current->d_type = DT_DIR;
             } else if (entry[i].attributes & 0x20) { // File
                 current->d_type = DT_REG;
-            } else continue;
+            }
             used_bytes += reclen;
 
             current->d_ino = i;
             current->d_reclen = reclen;
             current->d_off = i;
-            if (long_name[0] == '\0')
-                memcpy(current->d_name, short_name, name_len);
-            else
-                memcpy(current->d_name, long_name, name_len);
+            memcpy(current->d_name, name, name_len);
 
             if (long_name[0] != '\0')
                 long_name[0] = '\0';

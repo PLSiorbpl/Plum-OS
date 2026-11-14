@@ -6,6 +6,7 @@ namespace USB {
 #define USB_DESCRIPTOR_INTERFACE      0x04
 #define USB_DESCRIPTOR_ENDPOINT       0x05
 #define USB_DESCRIPTOR_HID            0x21
+#define USB_DESCRIPTOR_CLASS_SPECIFIC 0x24
 
 #define USB_CLASS_HID                 0x03
 

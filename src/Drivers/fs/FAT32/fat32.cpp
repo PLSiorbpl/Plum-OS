@@ -68,15 +68,19 @@ namespace fs::FAT32 {
 
             heap::free_align(fat);
         }
+    }
 
+    void fat32_manager::mount() {
         vfs::FileObject *file = nullptr;
         FAT32FileSystem *root_fs32 = nullptr;
+
         for (auto &fat32_fs : fatfile_systems) {
             file = fat32_fs.open("fstab", 0);
             if (file) {
                 auto fat = fat32_fs.get_fat();
                 auto size = (u64)fat->bpb.large_sector_count * (u64)fat->bpb.bytes_per_sector;
                 file->close();
+
                 vfs::vfs.mount("/", &fat32_fs);
                 root_fs32 = &fat32_fs;
                 vfs::vfs.mount("/", &fat32_fs);

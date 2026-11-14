@@ -91,7 +91,8 @@ set_target_properties(Kernel PROPERTIES
 
 # All Images
 set(FAT_IMG ${CMAKE_SOURCE_DIR}/Images/fat.img)
-set(FAT32_IMG ${CMAKE_SOURCE_DIR}/Images/fat32.img)
+set(FAT32_IMG ${CMAKE_SOURCE_DIR}/Images/disk.img)
+#set(FAT322_IMG ${CMAKE_SOURCE_DIR}/Images/disk2.img)
 #set(USB_IMG ${CMAKE_SOURCE_DIR}/Images/usbfat32.img)
 set(LIMINE ${CMAKE_SOURCE_DIR}/vendor/limine)
 
@@ -141,6 +142,8 @@ set(QEMU_FLAGS
         -device ahci,id=ahci
         -device ide-hd,drive=hd0,bus=ahci.0
         -drive file=${FAT32_IMG},format=raw,if=none,id=hd0
+		#-device ide-hd,drive=hd1,bus=ahci.1
+		#-drive file=${FAT322_IMG},format=raw,if=none,id=hd1
         # ----- NVME -----
         #-device nvme,drive=NVME1,serial=nvme-1
         #-drive file=${FAT32_IMG},format=raw,if=none,id=NVME1

@@ -746,7 +746,7 @@ namespace USB {
         const xhci_usb_config& config = device->active_config();
 
         for (const auto & iface : config.interfaces) {
-            log::info("  iface %u: class=%x protocol=%x endpoints=%u", iface.number, iface.class_code, iface.protocol, iface.endpoints.size());
+            log::info("  iface %u: class=%x prot=%x ep=%u", iface.number, iface.class_code, iface.protocol, iface.endpoints.size());
         }
 
         _set_configuration(device, config.config_value);

@@ -2,6 +2,12 @@
 #include "std/types.hpp"
 
 namespace std {
+    constexpr int tolower(int c) {
+        return (c >= 'A' && c <= 'Z') ? c + ('a' - 'A') : c;
+    }
+    constexpr int toupper(int c) {
+        return (c >= 'a' && c <= 'z') ? c - ('a' - 'A') : c;
+    }
     int strcmp(const char* str1, const char* str2);
     bool strncmp(const char* str1, const char* str2, uint64_t n);
     int strlen(const char* text);

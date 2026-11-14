@@ -75,8 +75,32 @@ namespace USB {
                     break;
                 }
 
+                case USB_DESCRIPTOR_CLASS_SPECIFIC: {
+                    if (desc_len < 3)
+                        break;
+
+                    uint8_t desc_subtype = ptr[2];
+                    switch (current_iface->class_code) {
+                        case 0x0E: { // USB Video class
+                            switch (desc_subtype) {
+                                case 0x01: { // VS/VC descriptor
+                                    break;
+                                }
+                                default:
+                                    //log::info("  UVC descriptor subtype %x len %u", desc_subtype, desc_len);
+                                    break;
+                            }
+                            break;
+                        }
+
+                        default:
+                            //log::info("  CS_INTERFACE class %x subtype %x len %u", current_iface->class_code, desc_subtype, desc_len);
+                            break;
+                    }
+                }
+
                 default:
-                    log::warn("[ xHCI ] (unknown descriptor type %x len=%u)", desc_type, desc_len);
+                    //log::warn("  (ukwn desc type %x len %u)", desc_type, desc_len);
                     break;
             }
 

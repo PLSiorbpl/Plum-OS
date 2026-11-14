@@ -94,7 +94,8 @@ namespace systemPL {
         drivers::ps2::init(acpi);
         acpi.enumerate_bus();
 
-        log::info("aHCI:\n"); fb.swap();
+        log::info("aHCI:\n");;
+        log::info("FAT32:\n"); fb.swap();
 
         ahci.init();
         for (int i = 0; i < 32; ++i) {
@@ -103,19 +104,21 @@ namespace systemPL {
                 continue;
 
             device->initialize();
-            auto size = static_cast<double>(device->get_sector_count() * device->get_sector_size());
-            log::info("Device info for device %i: \n"
-                "\tModel: %s\n"
-                "\tFirmware version: %s\n"
-                "\tSize: %f%s\n", i, device->get_model(), device->get_firmware(), size, std::format_size(size));
+            //auto size = static_cast<double>(device->get_sector_count() * device->get_sector_size());
+            //log::info("Device info for device %i: \n"
+            //    "\tModel: %s\n"
+            //    "\tFirmware version: %s\n"
+            //    "\tSize: %f%s\n", i, device->get_model(), device->get_firmware(), size, std::format_size(size));
+            fat_manager.init(*device);
         }
+        fat_manager.mount();
 
-        log::info("FAT32:\n"); fb.swap();
 
-        _device = ahci.request_device(0);
-        partition_manager.init(*_device);
-        partition_manager.list_partitions();
-        fat_manager.init(*_device);
+        //_device = ahci.request_device(0);
+        //partition_manager.init(*_device);
+        //partition_manager.list_partitions();
+        //fat_manager.init(*_device);
+        //fat_manager.mount();
 
         fs::DeviceFileSystem devfs;
         fs::stdoutObject stdout_device;
