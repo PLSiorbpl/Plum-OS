@@ -8,7 +8,7 @@
 #include "std/string.h"
 #include "User_Programs/MyCraft/main.hpp"
 
-Command commands[10] = {
+Command commands[] = {
     {
         "http", [](int argc, char** argv) {
             int server_num = tsock::socket();
@@ -202,25 +202,65 @@ Command commands[10] = {
         }
     }, {
         "cat", [](int argc, char** argv) {
+            if (argc < 2) {
+                std::printf("&fUsage: cat <file>\n");
+                return;
+            }
             const char* path = "/";
-            if (argc >= 2)
-                path = argv[1];
+            path = argv[1];
 
             int fd = sys_open(path, 0, 0);
-
             if (fd < 0) {
-                std::printf("&fls: &ccannot open file\n");
+                std::printf("&fcat: &ccannot open file\n");
                 return;
             }
 
-            char buffer[4096];
-            buffer[4095] = '\0';
-            if (!sys_read(fd, buffer, 4095)) {
-                std::printf("&fcat: &ccant read file content");
+            char buffer[4096] = {};
+
+            while (true) {
+                long bytes = sys_read(fd, buffer, sizeof(buffer));
+
+                if (bytes < 0) {
+                    std::printf("&fcat: &ccannot read file content %i\n", std::Output::std_out, bytes);
+                    break;
+                }
+
+                if (bytes == 0)
+                    break;
+
+                std::printf("\t&7%s", std::Output::std_out, buffer);
+            }
+
+            sys_close(fd);
+            std::printf("\n");
+        }
+    }, {
+        "write", [](int argc, char** argv) {
+            if (argc < 3) {
+                std::printf("Usage: write <path> <text>\n");
                 return;
             }
 
-            std::printf("%s\n", std::Output::std_out, buffer);
+            int fd = sys_open(argv[1], 0, 0);
+            if (fd < 0) {
+                std::printf("&fwrite: &ccannot open file\n");
+                return;
+            }
+
+            const char *text = argv[2];
+            size_t len = std::strlen(text);
+
+            long written = sys_write(fd, text, len);
+
+            if (written < 0 || static_cast<size_t>(written) != len) {
+                std::printf("&cFailed to write entire text\n");
+                sys_close(fd);
+                return;
+            }
+
+            sys_close(fd);
+
+            std::printf("&7Written %u bytes to %s\n", std::Output::std_out, len, argv[1]);
         }
     }
 };

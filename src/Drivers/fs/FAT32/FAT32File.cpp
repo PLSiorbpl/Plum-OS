@@ -1,5 +1,6 @@
 #include "FAT32FileSystem.hpp"
 #include "Data_structures.hpp"
+#include "kernel/log.h"
 #include "std/types.hpp"
 #include "kernel/Process/FileDescriptor.hpp"
 #include "std/string.h"
@@ -25,13 +26,39 @@ namespace fs {
     }
 
     int64_t FAT32File::write(const void *buffer, const size_t size) {
-        if (!filesystem || !filesystem->get_dev() || !buffer)
+        if (!filesystem || !filesystem->get_dev() || !buffer || cluster_size == 0)
             return -1;
 
         if (size == 0)
             return 0;
 
         uint64_t cluster = first_cluster;
+
+        if (cluster == 0) {
+            uint64_t free;
+            if (!filesystem->find_free_cluster(&free)) {
+                return -1;
+            }
+            if (!filesystem->set_cluster(free, EOF)) {
+                return -1;
+            }
+            auto buf = static_cast<uint16_t *>(heap::malloc(cluster_size));
+            memset(buf, 0, cluster_size);
+            if (!filesystem->get_dev()->write_bytes(free, 0, cluster_size, buf)) {
+                return -1;
+            }
+            file.first_cluster_high = (free >> 16) & 0xFFFF;
+            file.first_cluster_low = free & 0xFFFF;
+            if (!update_file_entry()) {
+                file.first_cluster_high = 0;
+                file.first_cluster_low = 0;
+                if (!filesystem->set_cluster(free, 0))
+                    return -1;
+                return -1;
+            }
+            cluster = free;
+        }
+
         const uint64_t cluster_index = position / cluster_size;
 
         for (uint64_t i = 0; i < cluster_index; ++i) {
@@ -41,6 +68,7 @@ namespace fs {
                 return -1;
 
             if (next == 0) {
+                log::info("new cluster");
                 // Allocate new cluster
                 if (!filesystem->find_free_cluster(&next)) {
                     return -1;

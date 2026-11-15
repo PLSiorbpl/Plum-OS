@@ -30,6 +30,11 @@ namespace USB {
             return false;
         }
 
+        uint16_t command = usb.read16(0x04);
+        command |= (1 << 1); // Memory Space Enable
+        command |= (1 << 2); // Bus Master Enable
+        usb.write16(0x04, command);
+
         const uint32_t bar0 = usb.bar[0];
         const uint32_t bar1 = usb.bar[1];
 
