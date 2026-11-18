@@ -31,59 +31,86 @@ namespace fs {
             return files.back().get();
         }
 
-        auto *buffer = static_cast<FAT32::file_entry *>(heap::malloc(cluster_size));
+        const char *i = path;
+        uint64_t lba = root_lba;
+        while (true) {
+            auto file = find_entry(&lba, i);
+            i = std::strchr(i, '/');
 
-        if (!device->read_bytes(root_lba, 0, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
+            if (!file)
+                return nullptr;
+
+            if (i == nullptr) {
+                auto f = std::unique_ptr(file);
+                files.push_back(std::move(f));
+                return files.back().get();
+            }
+            i++;
+            if (!file->is_directory())
+                return nullptr;
+            delete file;
+        }
+        return nullptr;
+    }
+
+    FileObject *FAT32FileSystem::find_entry(uint64_t *lba, const char *entry) {
+        auto *buffer = static_cast<FAT32::file_entry *>(heap::malloc(cluster_size));
+        if (!buffer)
+            return nullptr;
+
+        if (!device->read_bytes(*lba, 0, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
             heap::free(buffer);
             log::error("[ FAT32 ] Failed to read cluster: lba=%l cluster_size=%u", root_lba, cluster_size);
             return nullptr;
         }
 
         char long_name[255] = {};
-        const auto *entry = buffer;
-        char *name = nullptr;
         for (size_t i = 0; i < cluster_size/sizeof(FAT32::file_entry); i++) {
-
-            if (entry[i].file_name[0] == 0x0)
+            if (buffer[i].file_name[0] == 0x0) // Nothing
                 break;
-            if (static_cast<uint8_t>(entry[i].file_name[0]) == 0xE5) // Deleted file
+            if (buffer[i].file_name[0] == 0xE5) { // Deleted file
+                long_name[0] = '\0';
                 continue;
+            }
 
-            char short_name[13];
-            parse_short_name(short_name, &entry[i]);
-            if (long_name[0] == '\0')
-                name = short_name;
+            char short_name[13] = {};
+            parse_short_name(short_name, &buffer[i]);
+
+            const char* name = long_name[0] ? long_name : short_name;
 
             // Long file name
-            if (entry[i].attributes == 0x0F) {
-                parse_lfn(long_name, (FAT32::long_file_name *)&entry[i]);
+            if (buffer[i].attributes == 0x0F) {
+                parse_lfn(long_name, reinterpret_cast<FAT32::long_file_name *>(&buffer[i]));
                 name = long_name;
                 continue;
             }
 
-            if (entry[i].attributes & 0x10) // Dir
-                if (std::strcmp(name, path) == 0) {
-                    auto ptr = std::make_unique<FAT32Dir>(this, entry[i], i * sizeof(FAT32::file_entry), root_lba);
-                    files.push_back(std::move(ptr));
-                    heap::free(buffer);
+            if (buffer[i].attributes & 0x08)
+                continue;
 
-                    return files.back().get();
-                }
-            if (entry[i].attributes & 0x20) { // File
-                if (std::strcmp(name, path) == 0) {
-                    auto ptr = std::make_unique<FAT32File>(this, entry[i], i * sizeof(FAT32::file_entry), root_lba);
-                    files.push_back(std::move(ptr));
-                    heap::free(buffer);
+            const char* slash = std::strchr(entry, '/');
+            size_t len = slash ? static_cast<size_t>(slash - entry) : std::strlen(entry);
 
-                    return files.back().get();
-                }
+            if (std::strncmp(name, entry, len) == 0 && name[len] == '\0') {
+                FileObject *ptr = nullptr;
+                if (buffer[i].attributes & 0x10)
+                    ptr = new FAT32Dir(this, buffer[i], i * sizeof(FAT32::file_entry), *lba);
+                else
+                    ptr = new FAT32File(this, buffer[i], i * sizeof(FAT32::file_entry), *lba);
+
+                uint64_t cluster = static_cast<uint32_t>(buffer[i].first_cluster_low) | (static_cast<uint32_t>(buffer[i].first_cluster_high) << 16);
+                if (cluster == 0)
+                    cluster = root_cluster;
+                *lba = calculate_lba(cluster);
+                heap::free(buffer);
+                return ptr;
             }
 
             if (long_name[0] != '\0')
                 long_name[0] = '\0';
         }
-        heap::free(buffer);
 
+        heap::free(buffer);
         return nullptr;
     }
 

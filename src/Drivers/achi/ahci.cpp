@@ -27,6 +27,11 @@ void drivers::ahci::ahci::init() {
     const auto device = PCI::find_class_with_sub(0x01, 0x06);
     //const u8 irq = PCI::pci_read8(device.bus, device.device, device.function, 0x3C);
 
+    u16 cmd = device.read16(0x04);
+    cmd |= (1 << 1) | (1 << 2);   // memory space, bus master
+    cmd &= ~(1 << 10);            // interrupt disable off
+    device.write16(0x04, cmd);
+
     constexpr uint8_t irq = 11;
     PCI::install_interrupt(device, [](const IDT::ISR_Registers* regs) {
         const auto ahci = &systemPL::ahci;
@@ -36,6 +41,14 @@ void drivers::ahci::ahci::init() {
     hba = reinterpret_cast<volatile hba_memory*>(static_cast<u64>(device.bar[5] & 0xFFFFFFF0));
     Paging::Map_memory(reinterpret_cast<u64>(hba), reinterpret_cast<u64>(hba) + sizeof(hba_memory), Paging::Profile::MMIO);
 
+    //if (hba->cap2 & 1) {
+    //    hba->bohc |= (1 << 1);
+    //    while ((hba->bohc & 1) != 0) {
+    //        Time::Sleep(10);
+    //    }
+    //    if (hba->bohc & (1 << 4))
+    //        Time::Sleep(2000);
+    //}
 
     hba->ghc.ahci_enable = true;
     while (!hba->ghc.ahci_enable) {}
@@ -58,13 +71,12 @@ void drivers::ahci::ahci::on_interrupt(const IDT::ISR_Registers* isr) {
     const u32 global_is = hba->is;
     if (!global_is)
         return;
-    hba->is = global_is;
 
     for (int i = 0; i < 32; ++i) {
-        if (global_is & (1 << i)) { // port interrupted
+        if ((global_is & (1u << i)) && ports[i].is_active())
             ports[i].on_interrupt();
-        }
     }
+    hba->is = global_is;
 }
 
 void drivers::ahci::ahci::probe_ports() {

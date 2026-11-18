@@ -5,7 +5,7 @@ namespace vfs {
     bool VFS::mount_matches(const char *path, const char *mount) {
         const size_t len = std::strlen(mount);
 
-        if (!std::strncmp(path, mount, len))
+        if (std::strncmp(path, mount, len) != 0)
             return false;
 
         if (len == 1 && mount[0] == '/')

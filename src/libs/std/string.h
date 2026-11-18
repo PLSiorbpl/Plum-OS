@@ -9,9 +9,10 @@ namespace std {
         return (c >= 'a' && c <= 'z') ? c - ('a' - 'A') : c;
     }
     int strcmp(const char* str1, const char* str2);
-    bool strncmp(const char* str1, const char* str2, uint64_t n);
+    int strncmp(const char* str1, const char* str2, size_t n);
     int strlen(const char* text);
     i32 strcpy(char* dst, const char* src);
+    const char *strchr(const char *text, char c);
 
     template <typename T> struct is_floating_point             { static const bool value = false; };
     template <>           struct is_floating_point<float>      { static const bool value = true;  };

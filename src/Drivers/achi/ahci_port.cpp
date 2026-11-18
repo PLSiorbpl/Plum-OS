@@ -106,7 +106,7 @@ namespace drivers::ahci {
 
     void ahci_port::comreset() const {
         port->sctl = (port->sctl & ~0xF) | 0x1;
-        for (volatile int i = 0; i < 100000; i++) {}
+        for (volatile int i = 0; i < 1000000; i++) {}
         port->sctl = port->sctl & ~0xF;
 
         for (int i = 0; i < 1000000; i++) {
@@ -149,8 +149,8 @@ namespace drivers::ahci {
     bool ahci_port::read(const u64 start, u32 count, u16* buffer, const u16 sector_size) {
         clear_interrupt_errors();
 
-        const u32 slot = static_cast<u8>(get_command_slot());
-        if (slot == static_cast<u32>(-1))
+        const i8 slot = get_command_slot();
+        if (slot < 0)
             return false;
 
         const u32 start_lo = static_cast<u32>(start);
@@ -212,8 +212,8 @@ namespace drivers::ahci {
     bool ahci_port::write(const u64 start, u32 count, const u16* buffer, const u16 sector_size) {
         clear_interrupt_errors();
 
-        const u32 slot = static_cast<u8>(get_command_slot());
-        if (slot == static_cast<u32>(-1))
+        const i8 slot = get_command_slot();
+        if (slot < 0)
             return false;
 
         const u32 start_lo = static_cast<u32>(start);
@@ -228,28 +228,30 @@ namespace drivers::ahci {
         header.prefetchable = false;
         header.clear = true;
 
-        if (header.prd_table_length > MAX_PRDT_SIZE)
-            return false;
-
         const auto table = command_slots[slot].table;
         memset(table, 0, sizeof(command_table));
 
-        // 8K bytes (16 sectors) per PRDT
-        for (int i = 0; i < header.prd_table_length - 1; i++)
-        {
-            table->prdt[i].data_base_address = static_cast<uint32_t>(to_physical(reinterpret_cast<u64>(buffer)));
-            table->prdt[i].data_base_address_upper = bits_is_64 ? static_cast<uint32_t>(to_physical(reinterpret_cast<u64>(buffer)) >> 32) : 0;
-            table->prdt[i].data_byte_count = 8 * 1024 - 1; // 8K bytes (this value should always be set to 1 less than the actual value)
-            table->prdt[i].interrupt_on_complete = true;
-            buffer += 4 * 1024;	// 4K words
-            count -= sectors_per_prdt; // 16 sectors
-        }
+        u64 vbuf = reinterpret_cast<u64>(buffer);
+        u32 remaining_bytes = count * sector_size;
+        int i = 0;
+        while (remaining_bytes > 0) {
+            if (i >= MAX_PRDT_SIZE)
+                return false; // would overflow the PRDT table
 
-        // Last entry
-        table->prdt[header.prd_table_length - 1].data_base_address = static_cast<uint32_t>(to_physical(reinterpret_cast<u64>(buffer)));
-        table->prdt[header.prd_table_length - 1].data_base_address_upper = bits_is_64 ? static_cast<uint32_t>(to_physical(reinterpret_cast<u64>(buffer)) >> 32) : 0;
-        table->prdt[header.prd_table_length - 1].data_byte_count = count * sector_size - 1; // 512 bytes per sector
-        table->prdt[header.prd_table_length - 1].interrupt_on_complete = true;
+            u64 phys = to_physical(vbuf);
+            u32 page_offset = phys & 0xFFF;
+            u32 max_this_entry = std::min<u32>(4096 - page_offset, remaining_bytes);
+
+            table->prdt[i].data_base_address = static_cast<uint32_t>(phys);
+            table->prdt[i].data_base_address_upper = bits_is_64 ? static_cast<uint32_t>(phys >> 32) : 0;
+            table->prdt[i].data_byte_count = max_this_entry - 1;
+            table->prdt[i].interrupt_on_complete = (remaining_bytes - max_this_entry == 0);
+
+            vbuf += max_this_entry;
+            remaining_bytes -= max_this_entry;
+            i++;
+        }
+        header.prd_table_length = i;
 
         const auto command_fis = reinterpret_cast<fis::reg_h2d*>(table->command_fis);
         memset(command_fis, 0, sizeof(fis::reg_h2d));

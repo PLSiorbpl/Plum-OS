@@ -228,7 +228,7 @@ Command commands[] = {
                 if (bytes == 0)
                     break;
 
-                std::printf("\t&7%s", std::Output::std_out, buffer);
+                std::printf("&7%s", std::Output::std_out, buffer);
             }
 
             sys_close(fd);

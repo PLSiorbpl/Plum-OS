@@ -23,6 +23,7 @@ namespace fs {
     public:
         bool mount(drivers::ahci::ahci_device &dev, const FAT32::fat_info& part);
         vfs::FileObject *open(const char *path, int flags) override;
+        vfs::FileObject *find_entry(uint64_t *lba, const char *entry);
 
         bool get_next_cluster(uint64_t cluster, uint64_t *next) const;
         bool find_free_cluster(uint64_t *cluster) const;
@@ -35,6 +36,7 @@ namespace fs {
         [[nodiscard]] uint64_t get_cluster_size() const { return cluster_size; }
         [[nodiscard]] drivers::ahci::ahci_device *get_dev() const { return device; }
         [[nodiscard]] const FAT32::fat_info *get_fat() const { return &fat; }
+        [[nodiscard]] uint64_t get_root_cluster() const { return root_cluster; }
         void close(const vfs::FileObject *file);
     };
 

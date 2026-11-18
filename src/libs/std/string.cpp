@@ -17,16 +17,16 @@ namespace std {
         return c1 - c2;
     }
 
-    bool strncmp(const char* str1, const char* str2, uint64_t n) {
-        for (uint64_t i = 0; i < n; i++) {
-            if (str1[i] != str2[i])
-                return false;
-
-            if (str1[i] == '\0')
-                return true;
+    int strncmp(const char *str1, const char *str2, size_t n) {
+        for (size_t i = 0; i < n; i++) {
+            const auto a = static_cast<unsigned char>(str1[i]);
+            const auto b = static_cast<unsigned char>(str2[i]);
+            if (a != b)
+                return static_cast<int>(a) - static_cast<int>(b);  // <0, 0, >0
+            if (a == '\0')
+                return 0;
         }
-
-        return true;
+        return 0;
     }
 
     int strlen(const char* text) {
@@ -45,5 +45,16 @@ namespace std {
         }
         dst[i] = '\0';
         return i;
+    }
+
+    const char *strchr(const char *text, char c) {
+        if (!text) return nullptr;
+        int i = 0;
+        while (text[i] != '\0') {
+            if (text[i] == c)
+                return &text[i];
+            i++;
+        }
+        return nullptr;
     }
 }
