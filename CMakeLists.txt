@@ -75,12 +75,14 @@ target_compile_options(Kernel PRIVATE
         -DUACPI_OVERRIDE_CONFIG
 )
 
+set(src_boot ${CMAKE_SOURCE_DIR}/src_boot)
+
 target_link_options(Kernel PRIVATE
         -m64
         -nostdlib
         -no-pie
         -fuse-ld=lld
-        -T ${CMAKE_SOURCE_DIR}/linker.ld
+        -T ${src_boot}/linker.ld
 )
 
 set_target_properties(Kernel PROPERTIES
@@ -92,8 +94,7 @@ set_target_properties(Kernel PROPERTIES
 # All Images
 set(FAT_IMG ${CMAKE_SOURCE_DIR}/Images/fat.img)
 set(FAT32_IMG ${CMAKE_SOURCE_DIR}/Images/disk.img)
-#set(FAT322_IMG ${CMAKE_SOURCE_DIR}/Images/disk2.img)
-#set(USB_IMG ${CMAKE_SOURCE_DIR}/Images/usbfat32.img)
+
 set(LIMINE ${CMAKE_SOURCE_DIR}/vendor/limine)
 
 set(OVMF ${CMAKE_SOURCE_DIR}/src_boot/ovmf_code_4M.fd)
@@ -118,7 +119,7 @@ add_custom_target(build
         COMMAND mcopy  -i ${FAT_IMG} ${LIMINE}/limine-bios-cd.bin  ::/boot/limine/limine-bios-cd.bin # BIOS
         COMMAND mcopy  -i ${FAT_IMG} ${LIMINE}/limine-bios.sys  ::/boot/limine/limine-bios.sys # BIOS
         COMMAND mcopy  -i ${FAT_IMG} ${CMAKE_CURRENT_BINARY_DIR}/Kernel.elf  ::/Kernel.elf
-        COMMAND mcopy  -i ${FAT_IMG} ${CMAKE_SOURCE_DIR}/limine.conf  ::/boot/limine/limine.conf
+        COMMAND mcopy  -i ${FAT_IMG} ${src_boot}/limine.conf  ::/boot/limine/limine.conf
         DEPENDS Kernel
         VERBATIM
 )
@@ -134,6 +135,7 @@ set(QEMU_FLAGS
         -M q35
         -vga std
         -boot order=c
+		-display gtk
         # ----- Drives -----
         -drive if=pflash,format=raw,readonly=on,file=${OVMF}
         -drive if=none,id=fat,format=raw,file=${FAT_IMG}
@@ -172,6 +174,13 @@ set(QEMU_FLAGS
 
 add_custom_target(run
         COMMENT "launching QEMU"
+
+		COMMAND bash -c
+		"if [ ! -f '${FAT32_IMG}' ]; then sudo bash '${CMAKE_SOURCE_DIR}/scripts/Make_disk.sh'; fi"
+
+		COMMAND bash -c
+		"ip link show tap0 >/dev/null 2>&1 || bash ${CMAKE_SOURCE_DIR}/scripts/setup-TAP.sh"
+
         COMMAND qemu-system-x86_64 ${QEMU_FLAGS}
         DEPENDS Kernel build
         VERBATIM
