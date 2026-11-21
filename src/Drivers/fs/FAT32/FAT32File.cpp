@@ -68,7 +68,6 @@ namespace fs {
                 return -1;
 
             if (next == 0) {
-                log::info("new cluster");
                 // Allocate new cluster
                 if (!filesystem->find_free_cluster(&next)) {
                     return -1;

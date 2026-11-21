@@ -47,14 +47,30 @@ namespace std {
         return i;
     }
 
-    const char *strchr(const char *text, char c) {
+    char *strchr(const char *text, char c) {
         if (!text) return nullptr;
         int i = 0;
         while (text[i] != '\0') {
             if (text[i] == c)
-                return &text[i];
+                return (char *)&text[i];
             i++;
         }
         return nullptr;
+    }
+
+    char *strrchr(const char *str, int ch) {
+        const char *last = nullptr;
+        const char c = static_cast<char>(ch);
+
+        while (*str) {
+            if (*str == c)
+                last = str;
+            str++;
+        }
+
+        if (*str == c)
+            last = str;
+
+        return (char *)last;
     }
 }

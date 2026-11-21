@@ -241,7 +241,7 @@ Command commands[] = {
                 return;
             }
 
-            int fd = sys_open(argv[1], 0, 0);
+            int fd = sys_open(argv[1], O_CREAT | O_RDWR, 0);
             if (fd < 0) {
                 std::printf("&fwrite: &ccannot open file\n");
                 return;

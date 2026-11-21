@@ -32,13 +32,23 @@ namespace fs {
         }
 
         const char *i = path;
+        const char *last_i = i;
         uint64_t lba = root_lba;
         while (true) {
             auto file = find_entry(&lba, i);
+            last_i = i;
             i = std::strchr(i, '/');
 
-            if (!file)
+            if (!file) {
+                if (last_i && i == nullptr && (flags & O_CREAT)) {
+                    file = create_entry(&lba, last_i);
+                    if (!file) return nullptr;
+                    auto f = std::unique_ptr(file);
+                    files.push_back(std::move(f));
+                    return files.back().get();
+                }
                 return nullptr;
+            }
 
             if (i == nullptr) {
                 auto f = std::unique_ptr(file);
@@ -53,6 +63,43 @@ namespace fs {
         return nullptr;
     }
 
+    FileObject *FAT32FileSystem::create_entry(uint64_t *lba, const char *name) {
+        auto *buffer = static_cast<FAT32::file_entry *>(heap::malloc(cluster_size));
+        if (!buffer)
+            return nullptr;
+
+        if (!device->read_bytes(*lba, 0, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
+            heap::free(buffer);
+            log::error("[ FAT32 ] Failed to read cluster: lba=%l cluster_size=%u", *lba, cluster_size);
+            return nullptr;
+        }
+
+        for (size_t i = 0; i < cluster_size/sizeof(FAT32::file_entry); i++) {
+            if (buffer[i].file_name[0] == 0x0 || buffer[i].file_name[0] == 0xE5) { // Nothing || Deleted file
+                FAT32::file_entry entry = {};
+                entry.attributes = 0x20; // File
+                entry.file_size = 0;
+                entry.first_cluster_low = 0;
+                entry.first_cluster_high = 0;
+                if (!make_short_name(name, &entry)) {
+                    heap::free(buffer);
+                    return nullptr;
+                }
+
+                if (!device->write_bytes(*lba, i * sizeof(FAT32::file_entry), sizeof(FAT32::file_entry), reinterpret_cast<uint16_t *>(&entry))) {
+                    heap::free(buffer);
+                    log::error("[ FAT32 ] Failed to write entry: lba=%l cluster_size=%u", *lba, cluster_size);
+                    return nullptr;
+                }
+                FileObject *ptr = new FAT32File(this, entry, i * sizeof(FAT32::file_entry), *lba);
+                heap::free(buffer);
+                return ptr;
+            }
+        }
+        heap::free(buffer);
+        return nullptr;
+    }
+
     FileObject *FAT32FileSystem::find_entry(uint64_t *lba, const char *entry) {
         auto *buffer = static_cast<FAT32::file_entry *>(heap::malloc(cluster_size));
         if (!buffer)
@@ -60,7 +107,7 @@ namespace fs {
 
         if (!device->read_bytes(*lba, 0, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
             heap::free(buffer);
-            log::error("[ FAT32 ] Failed to read cluster: lba=%l cluster_size=%u", root_lba, cluster_size);
+            log::error("[ FAT32 ] Failed to read cluster: lba=%l cluster_size=%u", *lba, cluster_size);
             return nullptr;
         }
 
@@ -112,6 +159,53 @@ namespace fs {
 
         heap::free(buffer);
         return nullptr;
+    }
+
+    bool FAT32FileSystem::make_short_name(const char *name, FAT32::file_entry *entry) {
+        if (!name || !entry) return false;
+
+        memset(entry->file_name, ' ', 11);
+        entry->rsvd_WindowsNT = 0;
+
+        const char *dot = std::strrchr(name, '.');
+        size_t base_len = dot ? dot - name : std::strlen(name);
+        size_t ext_len = dot ? std::strlen(dot + 1) : 0;
+
+        if (base_len == 0 || base_len > 8 || ext_len > 3)
+            return false;
+
+        bool base_lower = false;
+        bool ext_lower = false;
+
+        for (int i = 0; i < base_len; i++) {
+            char c = name[i];
+
+            if (c == ' ' || c == '.' || c == '/' || c == '\\')
+                return false;
+
+            if (std::islower(c)) {
+                base_lower = true;
+                c = static_cast<char>(std::toupper(c));
+            }
+            entry->file_name[i] = c;
+        }
+
+        for (int i = 0; i < ext_len; i++) {
+            char c = dot[1 + i];
+
+            if (c == ' ' || c == '.' || c == '/' || c == '\\')
+                return false;
+
+            if (std::islower(c)) {
+                ext_lower = true;
+                c = static_cast<char>(std::toupper(c));
+            }
+            entry->file_name[8 + i] = c;
+        }
+
+        if (base_lower) entry->rsvd_WindowsNT |= 0x8;
+        if (ext_lower) entry->rsvd_WindowsNT |= 0x10;
+        return true;
     }
 
     void FAT32FileSystem::parse_short_name(char *buf, const FAT32::file_entry *entry) {

@@ -8,11 +8,19 @@ namespace std {
     constexpr int toupper(int c) {
         return (c >= 'a' && c <= 'z') ? c - ('a' - 'A') : c;
     }
+    constexpr int isupper(int c) {
+        return (c >= 'A' && c <= 'Z');
+    }
+
+    constexpr int islower(int c) {
+        return (c >= 'a' && c <= 'z');
+    }
     int strcmp(const char* str1, const char* str2);
     int strncmp(const char* str1, const char* str2, size_t n);
     int strlen(const char* text);
     i32 strcpy(char* dst, const char* src);
-    const char *strchr(const char *text, char c);
+    char *strchr(const char *text, char c);
+    char *strrchr(const char *str, int ch);
 
     template <typename T> struct is_floating_point             { static const bool value = false; };
     template <>           struct is_floating_point<float>      { static const bool value = true;  };
