@@ -15,7 +15,7 @@ namespace vfs {
         [[nodiscard]] virtual int64_t size() const { return -1; }
         [[nodiscard]] virtual bool is_directory() const { return false; }
         virtual int Stat(stat* info) const { return -1; }
-        virtual int getdents64(linux_dirent64 *dirent, unsigned int count) { return -1; }
+        virtual int getdents64(DirectoryEntry *dirent, unsigned int count) { return -1; }
         virtual void close() {}
     };
 

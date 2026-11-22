@@ -87,7 +87,7 @@ namespace fs {
     public:
         FAT32Dir(FAT32FileSystem *filesystem, const FAT32::file_entry &file, uint64_t directory_entry_offset, uint64_t directory_entry_lba);
 
-        int getdents64(linux_dirent64 *dirent, unsigned int count) override;
+        int getdents64(DirectoryEntry *dirent, unsigned int count) override;
         int64_t seek(int64_t offset, unsigned int whence) override;
         [[nodiscard]] bool is_directory() const override { return true; }
         void close() override;

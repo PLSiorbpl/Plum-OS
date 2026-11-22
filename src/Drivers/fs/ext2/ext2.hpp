@@ -130,25 +130,6 @@ namespace fs::ext2 {
         u8 os_specific_2[12];
     } __attribute__((packed));
 
-    enum class DirectoryEntryType : u8 {
-        Unknown = 0,
-        File = 1,
-        Directory = 2,
-        CharacterDevice = 3,
-        BlockDevice = 4,
-        Fifo = 5,
-        Socket = 6,
-        SymLink = 7,
-    };
-
-    struct DirectoryEntry {
-        u32 inode;
-        u16 entry_size;
-        u8 name_length;
-        DirectoryEntryType type;
-        char name[];
-    } __attribute__((packed));
-
     class Ext2 : public vfs::FileSystem {
         public:
             void init(drivers::ahci::ahci_device& dev);
@@ -182,10 +163,11 @@ namespace fs::ext2 {
 
     class Ext2File : public vfs::FileObject {
         public:
-            Ext2File(Ext2& ext2_data, Inode* inode);
+            Ext2File(Ext2& ext2_data, Inode* inode, DirectoryEntry* entry);
             ~Ext2File() override;
 
-            int64_t read(void *buffer, size_t size) override;
+            int64_t read(void* buffer, size_t size) override;
+            int getdents64(DirectoryEntry* dirent, unsigned int count) override;
             //int64_t write(const void *buffer, size_t size) override;
             //int64_t seek(int64_t offset, unsigned int whence) override;
             [[nodiscard]] int64_t size() const override { return inode->size_bytes_lo | static_cast<u64>(inode->size_bytes_hi) << 32; }
@@ -198,5 +180,6 @@ namespace fs::ext2 {
             void* contents;
             Ext2& ext2_data;
             u64 position;
+            DirectoryEntry* entry;
     };
 }

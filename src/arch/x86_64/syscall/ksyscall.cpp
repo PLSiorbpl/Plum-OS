@@ -192,7 +192,7 @@ u64 kmkdir(const char *pathname, int mode) {
     return vfs::vfs.mkdir(pathname, mode);
 }
 
-u64 kgetdents64(const unsigned int fd, linux_dirent64 *dirent, const unsigned int count) {
+u64 kgetdents64(const unsigned int fd, DirectoryEntry *dirent, const unsigned int count) {
     auto process = vfs::get_thread();
 
     if (count == 0)

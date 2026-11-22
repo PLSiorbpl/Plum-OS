@@ -122,7 +122,7 @@ namespace systemPL {
         fat_manager.mount();
 
 
-        auto hello = vfs::vfs.open("/ext2/README.txt", 0);
+        auto hello = vfs::vfs.open("/ext2/home/user/document.txt", 0);
         auto* e = static_cast<char*>(heap::malloc_align(hello->size() + 1, 0x1000));
         auto n = hello->read(e, hello->size());
         e[n > 0 ? n : 0] = '\0';

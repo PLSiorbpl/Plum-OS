@@ -8,6 +8,7 @@ namespace fs::ext2 {
     vfs::FileObject* Ext2::open(const char* path, int flags) {
         auto start = path;
         auto* inode = read_inode(2);
+        DirectoryEntry* final_entry;
         if (!inode)
             return nullptr;
 
@@ -45,6 +46,7 @@ namespace fs::ext2 {
 
                 if (entry->inode != 0 && len == entry->name_length && memcmp(entry->name, name, len)) {
                     child = entry->inode;
+                    final_entry = entry;
                     break;
                 }
 
@@ -66,7 +68,7 @@ namespace fs::ext2 {
             start = end + 1;
         }
 
-        return new Ext2File(*this, inode);
+        return new Ext2File(*this, inode, final_entry);
     }
 
     void Ext2::init(drivers::ahci::ahci_device& dev) {

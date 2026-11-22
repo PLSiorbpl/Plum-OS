@@ -1,5 +1,6 @@
 #include "FAT32FileSystem.hpp"
 #include "Data_structures.hpp"
+#include "kernel/Process/fs_types.hpp"
 #include "kernel/log.h"
 #include "std/types.hpp"
 #include "kernel/Process/FileDescriptor.hpp"
@@ -311,7 +312,7 @@ namespace fs {
         return true;
     }
 
-    int FAT32Dir::getdents64(linux_dirent64 *dirent, const unsigned int count) {
+    int FAT32Dir::getdents64(DirectoryEntry *dirent, const unsigned int count) {
         if (!filesystem || !filesystem->get_dev() || !dirent || cluster_size == 0 || start_lba < 2)
             return -1;
 
@@ -361,25 +362,25 @@ namespace fs {
                     continue;
                 }
 
-                auto *current = reinterpret_cast<linux_dirent64 *>(reinterpret_cast<uint8_t *>(dirent) + used_bytes);
+                auto *current = reinterpret_cast<DirectoryEntry *>(reinterpret_cast<uint8_t *>(dirent) + used_bytes);
 
                 const size_t name_len = std::strlen(name) + 1;
-                size_t reclen = offsetof(linux_dirent64, d_name) + name_len;
+                size_t reclen = offsetof(DirectoryEntry, name) + name_len;
                 reclen = (reclen + 7) & ~7;
 
                 if (used_bytes + reclen > count) { heap::free(entry); return used_bytes; }
 
                 if (entry[i].attributes & 0x10) { // Dir
-                    current->d_type = DT_DIR;
+                    current->type = DirectoryEntryType::Directory;
                 } else if (entry[i].attributes & 0x20) { // File
-                    current->d_type = DT_REG;
+                    current->type = DirectoryEntryType::File;
                 }
                 used_bytes += reclen;
 
-                current->d_ino = idx;
-                current->d_reclen = reclen;
-                current->d_off = idx;
-                memcpy(current->d_name, name, name_len);
+                current->inode = idx;
+                current->name_length = reclen;
+                current->entry_size = idx;
+                memcpy(current->name, name, name_len);
 
                 if (long_name[0] != '\0')
                     long_name[0] = '\0';

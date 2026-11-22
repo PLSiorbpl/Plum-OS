@@ -90,10 +90,21 @@ struct stat {
     unsigned int    __unused5;
 };
 
-struct linux_dirent64 {
-    uint64_t d_ino;
-    int64_t  d_off;
-    unsigned short d_reclen;
-    unsigned char d_type;
-    char d_name[];
+enum class DirectoryEntryType : u8 {
+    Unknown = 0,
+    File = 1,
+    Directory = 2,
+    CharacterDevice = 3,
+    BlockDevice = 4,
+    Fifo = 5,
+    Socket = 6,
+    SymLink = 7,
 };
+
+struct DirectoryEntry {
+    u32 inode;
+    u16 entry_size;
+    u8 name_length;
+    DirectoryEntryType type;
+    char name[];
+} __attribute__((packed));

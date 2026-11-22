@@ -92,7 +92,7 @@ extern "C" u64 dispatch_syscall(syscall_regs *regs) {
 
         // unsigned int fd, linux_dirent64 *dirent, unsigned int count
         case syscall_id::getdents64:
-            return kgetdents64(regs->arg1, (linux_dirent64 *)regs->arg2, regs->arg3);
+            return kgetdents64(regs->arg1, (DirectoryEntry *)regs->arg2, regs->arg3);
 
         case syscall_id::pci:
             PCI::Test();

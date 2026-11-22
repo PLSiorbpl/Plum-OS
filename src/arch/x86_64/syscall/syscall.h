@@ -124,7 +124,7 @@ inline u64 sys_mkdir(const char *pathname, const int mode) {
     return syscall((u64)syscall_id::mkdir, reinterpret_cast<u64>(pathname), mode);
 }
 
-inline i64 sys_getdents64(const unsigned int fd, linux_dirent64 *dirent, const unsigned int count) {
+inline i64 sys_getdents64(const unsigned int fd, DirectoryEntry *dirent, const unsigned int count) {
     return syscall((u64)syscall_id::getdents64, fd, reinterpret_cast<u64>(dirent), count);
 }
 

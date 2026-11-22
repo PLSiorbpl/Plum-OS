@@ -1,3 +1,4 @@
+#include "kernel/Process/fs_types.hpp"
 #include "userspace.h"
 #include "arch/x86_64/syscall/syscall.h"
 #include "Drivers/Keyboard.hpp"
@@ -170,7 +171,7 @@ Command commands[] = {
             char buffer[4096];
 
             while (true) {
-                int bytes = sys_getdents64(fd, (linux_dirent64 *)buffer, sizeof(buffer));
+                int bytes = sys_getdents64(fd, (DirectoryEntry *)buffer, sizeof(buffer));
 
                 if (bytes < 0) {
                     std::printf("&fls: &cgetdents failed\n");
@@ -181,19 +182,19 @@ Command commands[] = {
 
                 int offset = 0;
                 while (offset < bytes) {
-                    auto* entry = reinterpret_cast<linux_dirent64*>(buffer + offset);
+                    auto* entry = reinterpret_cast<DirectoryEntry*>(buffer + offset);
 
-                    if (entry->d_type == DT_DIR) {
-                        if (std::strcmp(entry->d_name, ".") == 0 || std::strcmp(entry->d_name, "..") == 0)
-                            std::printf("&d%s\t", std::Output::std_out, entry->d_name);
+                    if (entry->type == DirectoryEntryType::Directory) {
+                        if (std::strcmp(entry->name, ".") == 0 || std::strcmp(entry->name, "..") == 0)
+                            std::printf("&d%s\t", std::Output::std_out, entry->name);
                         else
-                            std::printf("&9%s\t", std::Output::std_out, entry->d_name);
-                    } else if (entry->d_type == DT_REG)
-                        std::printf("&a%s\t", std::Output::std_out, entry->d_name);
+                            std::printf("&9%s\t", std::Output::std_out, entry->name);
+                    } else if (entry->type == DirectoryEntryType::File)
+                        std::printf("&a%s\t", std::Output::std_out, entry->name);
                     else
-                        std::printf("&f%s\t", std::Output::std_out, entry->d_name);
+                        std::printf("&f%s\t", std::Output::std_out, entry->name);
 
-                    offset += entry->d_reclen;
+                    offset += entry->entry_size;
                 }
             }
 

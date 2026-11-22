@@ -25,4 +25,4 @@ u64 kdup2(unsigned int oldfd, unsigned int newfd);
 
 u64 kmkdir(const char *pathname, int mode);
 
-u64 kgetdents64(unsigned int fd, linux_dirent64 *dirent, unsigned int count);
+u64 kgetdents64(unsigned int fd, DirectoryEntry *dirent, unsigned int count);
