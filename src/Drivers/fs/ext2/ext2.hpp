@@ -1,6 +1,5 @@
 #pragma once
 #include "Drivers/achi/ahci_device.h"
-#include "Drivers/fs/ext2/ext2_filesystem.hpp"
 #include "Drivers/fs/partition/gpt_partition.h"
 #include "Drivers/fs/partition/partition_manager.h"
 #include "kernel/Process/FileDescriptor.hpp"
