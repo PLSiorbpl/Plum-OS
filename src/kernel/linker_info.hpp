@@ -7,6 +7,9 @@ namespace heap {
 namespace Linker {
     extern "C" char __kernel_start;
 
+    extern "C" void (*__init_array_start[])();
+    extern "C" void (*__init_array_end[])();
+
     // .text
     extern "C" char __kernel_text_start;
     extern "C" char __kernel_text_end;

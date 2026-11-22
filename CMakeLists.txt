@@ -92,9 +92,8 @@ set_target_properties(Kernel PROPERTIES
 # ---------------------------------------------------------
 
 # All Images
-set(FAT_IMG ${CMAKE_SOURCE_DIR}/Images/fat.img)
+set(BOOT_IMG ${CMAKE_SOURCE_DIR}/Images/boot.img)
 set(FAT32_IMG ${CMAKE_SOURCE_DIR}/Images/disk.img)
-
 set(LIMINE ${CMAKE_SOURCE_DIR}/vendor/limine)
 
 set(OVMF ${CMAKE_SOURCE_DIR}/src_boot/ovmf_code_4M.fd)
@@ -104,22 +103,22 @@ set(OVMF ${CMAKE_SOURCE_DIR}/src_boot/ovmf_code_4M.fd)
 
 add_custom_target(build
         COMMENT "Building disk image"
-        COMMAND dd if=/dev/zero of=${FAT_IMG} bs=1M count=64
-        COMMAND mformat -i ${FAT_IMG}
+        COMMAND dd if=/dev/zero of=${BOOT_IMG} bs=1M count=64
+        COMMAND mformat -i ${BOOT_IMG}
         -h 32 -t 32 -n 64   # heads, tracks, sectors
         -F ::
 
-        COMMAND mmd    -i ${FAT_IMG} ::/EFI
-        COMMAND mmd    -i ${FAT_IMG} ::/EFI/BOOT
-        COMMAND mmd    -i ${FAT_IMG} ::/boot
-        COMMAND mmd    -i ${FAT_IMG} ::/boot/limine
+        COMMAND mmd    -i ${BOOT_IMG} ::/EFI
+        COMMAND mmd    -i ${BOOT_IMG} ::/EFI/BOOT
+        COMMAND mmd    -i ${BOOT_IMG} ::/boot
+        COMMAND mmd    -i ${BOOT_IMG} ::/boot/limine
 
-        COMMAND mcopy  -i ${FAT_IMG} ${LIMINE}/BOOTX64.EFI ::/EFI/BOOT/BOOTX64.EFI # UEFI
-        COMMAND mcopy  -i ${FAT_IMG} ${LIMINE}/limine-uefi-cd.bin  ::/boot/limine/limine-uefi-cd.bin # UEFI
-        COMMAND mcopy  -i ${FAT_IMG} ${LIMINE}/limine-bios-cd.bin  ::/boot/limine/limine-bios-cd.bin # BIOS
-        COMMAND mcopy  -i ${FAT_IMG} ${LIMINE}/limine-bios.sys  ::/boot/limine/limine-bios.sys # BIOS
-        COMMAND mcopy  -i ${FAT_IMG} ${CMAKE_CURRENT_BINARY_DIR}/Kernel.elf  ::/Kernel.elf
-        COMMAND mcopy  -i ${FAT_IMG} ${src_boot}/limine.conf  ::/boot/limine/limine.conf
+        COMMAND mcopy  -i ${BOOT_IMG} ${LIMINE}/BOOTX64.EFI ::/EFI/BOOT/BOOTX64.EFI # UEFI
+        COMMAND mcopy  -i ${BOOT_IMG} ${LIMINE}/limine-uefi-cd.bin  ::/boot/limine/limine-uefi-cd.bin # UEFI
+        COMMAND mcopy  -i ${BOOT_IMG} ${LIMINE}/limine-bios-cd.bin  ::/boot/limine/limine-bios-cd.bin # BIOS
+        COMMAND mcopy  -i ${BOOT_IMG} ${LIMINE}/limine-bios.sys  ::/boot/limine/limine-bios.sys # BIOS
+        COMMAND mcopy  -i ${BOOT_IMG} ${CMAKE_CURRENT_BINARY_DIR}/Kernel.elf  ::/Kernel.elf
+        COMMAND mcopy  -i ${BOOT_IMG} ${src_boot}/limine.conf  ::/boot/limine/limine.conf
         DEPENDS Kernel
         VERBATIM
 )
@@ -138,14 +137,12 @@ set(QEMU_FLAGS
 		-display gtk
         # ----- Drives -----
         -drive if=pflash,format=raw,readonly=on,file=${OVMF}
-        -drive if=none,id=fat,format=raw,file=${FAT_IMG}
+        -drive if=none,id=fat,format=raw,file=${BOOT_IMG}
         -device virtio-blk-pci,drive=fat
         # ----- AHCI -----
         -device ahci,id=ahci
         -device ide-hd,drive=hd0,bus=ahci.0
         -drive file=${FAT32_IMG},format=raw,if=none,id=hd0
-		#-device ide-hd,drive=hd1,bus=ahci.1
-		#-drive file=${FAT322_IMG},format=raw,if=none,id=hd1
         # ----- NVME -----
         #-device nvme,drive=NVME1,serial=nvme-1
         #-drive file=${FAT32_IMG},format=raw,if=none,id=NVME1

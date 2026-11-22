@@ -1,6 +1,7 @@
 #include "system.hpp"
 
 #include "acpi.h"
+#include "kernel/Process/FileDescriptor.hpp"
 #include "userspace.h"
 #include "limine.h"
 #include "linker_info.hpp"
@@ -39,6 +40,7 @@ namespace systemPL {
     fs::FAT32::fat32_manager fat_manager;
     drivers::acpi::acpi acpi;
     apic::IOAPIC ioapic;
+    fs::ext2::Ext2 ext2;
 
     void Init(framebuffer::framebuffer_info framebuffer_info, u64 heap_addr) {
         init_tss();
@@ -104,6 +106,12 @@ namespace systemPL {
                 continue;
 
             device->initialize();
+
+            if (i == 0) {
+                ext2.init(*device);
+                ext2.mount("/ext2");
+            }
+
             //auto size = static_cast<double>(device->get_sector_count() * device->get_sector_size());
             //log::info("Device info for device %i: \n"
             //    "\tModel: %s\n"
@@ -114,11 +122,14 @@ namespace systemPL {
         fat_manager.mount();
 
 
-        //_device = ahci.request_device(0);
-        //partition_manager.init(*_device);
-        //partition_manager.list_partitions();
-        //fat_manager.init(*_device);
-        //fat_manager.mount();
+        auto hello = vfs::vfs.open("/ext2/README.txt", 0);
+        auto* e = static_cast<char*>(heap::malloc_align(hello->size() + 1, 0x1000));
+        auto n = hello->read(e, hello->size());
+        e[n > 0 ? n : 0] = '\0';
+        log::warn("hello: %s", e);
+
+        heap::free_align(e);
+        delete hello;
 
         fs::DeviceFileSystem devfs;
         fs::stdoutObject stdout_device;

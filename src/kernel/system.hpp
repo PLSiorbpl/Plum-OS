@@ -3,6 +3,7 @@
 #include "arch/x86_64/IDT/APIC.hpp"
 #include "Drivers/achi/ahci.h"
 #include "Drivers/fs/FAT32/fat32.hpp"
+#include "Drivers/fs/ext2/ext2.hpp"
 #include "Drivers/fs/partition/partition_manager.h"
 #include "Drivers/GPU/framebuffer.hpp"
 #include "std/types.hpp"
@@ -23,6 +24,7 @@ namespace systemPL {
     extern fs::FAT32::fat32_manager fat_manager;
     extern drivers::acpi::acpi acpi;
     extern apic::IOAPIC ioapic;
+    extern fs::ext2::Ext2 ext2;
 
     void Init(framebuffer::framebuffer_info framebuffer_info, u64 heap_addr);
 }

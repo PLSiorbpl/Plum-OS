@@ -42,6 +42,11 @@ u64 kernel_address_vert = 0;
 
 extern "C" void setup();
 
+static void run_global_ctors() {
+    for (auto* f = Linker::__init_array_start; f != Linker::__init_array_end; ++f)
+        (*f)();
+}
+
 extern "C" void kernel_main() {
     if (LIMINE_BASE_REVISION_SUPPORTED == false)
         for(;;) __asm__("hlt");
@@ -55,6 +60,7 @@ extern "C" void kernel_main() {
         : "memory");
 
     setup();
+    run_global_ctors();
 
     // TODO pick best framebuffer
     auto* fb = fb_request.response->framebuffers[0];

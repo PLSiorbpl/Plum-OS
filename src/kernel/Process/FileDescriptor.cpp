@@ -1,4 +1,5 @@
 #include "FileDescriptor.hpp"
+#include "kernel/log.h"
 #include "std/string.h"
 
 namespace vfs {
@@ -68,7 +69,7 @@ namespace vfs {
         return best;
     }
 
-    FileObject *VFS::open(const char *path, const int flags) {
+    FileObject* VFS::open(const char *path, const int flags) {
         if (!path || path[0] != '/')
             return nullptr;
 

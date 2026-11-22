@@ -31,6 +31,13 @@ SECTIONS
 	.rodata : {
 	    __kernel_rodata_start = .;
 	    *(.rodata*)
+
+	    . = ALIGN(8);
+        __init_array_start = .;
+        KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*)))
+        KEEP(*(.init_array))
+        __init_array_end = .;
+
 	    __kernel_rodata_end = .;
 	} :rodata
 
