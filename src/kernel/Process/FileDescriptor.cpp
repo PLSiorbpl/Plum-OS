@@ -38,10 +38,7 @@ namespace vfs {
         return false;
     }
 
-    FileObject *VFS::open(const char *path, const int flags) {
-        if (!path || path[0] != '/')
-            return nullptr;
-
+    Mount *VFS::find_best_mount(const char *path, const char *&relative) {
         Mount* best = nullptr;
         size_t best_len = 0;
 
@@ -60,7 +57,7 @@ namespace vfs {
         if (!best)
             return nullptr;
 
-        const char* relative = path + best_len;
+        relative = path + best_len;
 
         // /dev/stdcout/   ->   stdcout/
         if (best_len == 1 && best->path[0] == '/')
@@ -68,6 +65,26 @@ namespace vfs {
         else if (*relative == '/')
             relative++;
 
+        return best;
+    }
+
+    FileObject *VFS::open(const char *path, const int flags) {
+        if (!path || path[0] != '/')
+            return nullptr;
+
+        const char *relative = nullptr;
+        const Mount *best = find_best_mount(path, relative);
+
         return best->fs->open(relative, flags);
+    }
+
+    int VFS::mkdir(const char *pathname, int mode) {
+        if (!pathname || pathname[0] != '/')
+            return -1;
+
+        const char *relative = nullptr;
+        const Mount *best = find_best_mount(pathname, relative);
+
+        return best->fs->mkdir(relative, mode);
     }
 }

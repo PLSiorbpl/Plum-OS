@@ -41,7 +41,7 @@ namespace fs {
 
             if (!file) {
                 if (last_i && i == nullptr && (flags & O_CREAT)) {
-                    file = create_entry(&lba, last_i);
+                    file = create_entry(&lba, last_i, false);
                     if (!file) return nullptr;
                     auto f = std::unique_ptr(file);
                     files.push_back(std::move(f));
@@ -63,98 +63,251 @@ namespace fs {
         return nullptr;
     }
 
-    FileObject *FAT32FileSystem::create_entry(uint64_t *lba, const char *name) {
+    int FAT32FileSystem::mkdir(const char *pathname, int mode) {
+        if (pathname[0] == '\0')
+            return -1;
+
+        const char *name = pathname;
+        const char *last_name = name;
+        uint64_t lba = root_lba;
+        while (true) {
+            auto file = find_entry(&lba, name);
+            last_name = name;
+            name = std::strchr(name, '/');
+
+            if (!file) {
+                if (last_name && !name) {
+                    file = create_entry(&lba, last_name, true);
+                    if (!file) return -1;
+                    delete file;
+                    return 0;
+                }
+                return -1;
+            }
+
+            // Directory exists
+            if (name == nullptr)
+                return -1;
+
+            name++;
+
+            if (!file->is_directory())
+                return -1;
+            delete file;
+        }
+    }
+
+    FileObject *FAT32FileSystem::create_entry(uint64_t *lba, const char *name, bool directory) {
         auto *buffer = static_cast<FAT32::file_entry *>(heap::malloc(cluster_size));
         if (!buffer)
             return nullptr;
 
-        if (!device->read_bytes(*lba, 0, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
-            heap::free(buffer);
-            log::error("[ FAT32 ] Failed to read cluster: lba=%l cluster_size=%u", *lba, cluster_size);
-            return nullptr;
-        }
+        uint64_t cluster = calculate_cluster(*lba);
 
-        for (size_t i = 0; i < cluster_size/sizeof(FAT32::file_entry); i++) {
-            if (buffer[i].file_name[0] == 0x0 || buffer[i].file_name[0] == 0xE5) { // Nothing || Deleted file
-                FAT32::file_entry entry = {};
-                entry.attributes = 0x20; // File
-                entry.file_size = 0;
-                entry.first_cluster_low = 0;
-                entry.first_cluster_high = 0;
-                if (!make_short_name(name, &entry)) {
-                    heap::free(buffer);
-                    return nullptr;
-                }
-
-                if (!device->write_bytes(*lba, i * sizeof(FAT32::file_entry), sizeof(FAT32::file_entry), reinterpret_cast<uint16_t *>(&entry))) {
-                    heap::free(buffer);
-                    log::error("[ FAT32 ] Failed to write entry: lba=%l cluster_size=%u", *lba, cluster_size);
-                    return nullptr;
-                }
-                FileObject *ptr = new FAT32File(this, entry, i * sizeof(FAT32::file_entry), *lba);
+        while (true) {
+            if (!device->read_bytes(calculate_lba(cluster), 0, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
                 heap::free(buffer);
-                return ptr;
+                log::error("[ FAT32 ] Failed to read cluster: lba=%l cluster_size=%u", *lba, cluster_size);
+                return nullptr;
             }
+
+            for (size_t i = 0; i < cluster_size/sizeof(FAT32::file_entry); i++) {
+                if (buffer[i].file_name[0] == 0x0 || buffer[i].file_name[0] == 0xE5) { // Nothing || Deleted file
+                    FAT32::file_entry entry = {};
+                    entry.attributes = directory ? 0x10 : 0x20; // Directory : File
+                    entry.file_size = 0;
+                    entry.first_cluster_low = 0;
+                    entry.first_cluster_high = 0;
+                    if (!make_short_name(name, &entry)) {
+                        heap::free(buffer);
+                        return nullptr;
+                    }
+
+                    uint64_t free;
+                    if (directory) {
+                        if (!initialize_directory(&entry, &free, calculate_cluster(*lba))) {
+                            heap::free(buffer);
+                            return nullptr;
+                        }
+                    }
+
+                    if (!device->write_bytes(calculate_lba(cluster), i * sizeof(FAT32::file_entry), sizeof(FAT32::file_entry), reinterpret_cast<uint16_t *>(&entry))) {
+                        if (directory && !set_cluster(free, 0)) {
+                            heap::free(buffer);
+                            return nullptr;
+                        }
+                        heap::free(buffer);
+                        log::error("[ FAT32 ] Failed to write entry: lba=%l cluster_size=%u", *lba, cluster_size);
+                        return nullptr;
+                    }
+                    FileObject *ptr = nullptr;
+                    if (directory)
+                        ptr = new FAT32Dir(this, entry, i * sizeof(FAT32::file_entry), calculate_lba(cluster));
+                    else
+                        ptr = new FAT32File(this, entry, i * sizeof(FAT32::file_entry), calculate_lba(cluster));
+                    heap::free(buffer);
+                    return ptr;
+                }
+            }
+
+            uint64_t next;
+            if (!get_next_cluster(cluster, &next)) {
+                heap::free(buffer);
+                return nullptr;
+            }
+
+            if (next == 0) {
+                // Allocate new cluster
+                if (!find_free_cluster(&next)) {
+                    heap::free(buffer);
+                    return nullptr;
+                }
+                if (!set_cluster(cluster, next)) {
+                    heap::free(buffer);
+                    return nullptr;
+                }
+                if (!set_cluster(next, EOF)) {
+                    heap::free(buffer);
+                    return nullptr;
+                }
+                auto buf = static_cast<uint16_t *>(heap::malloc(cluster_size));
+                memset(buf, 0, cluster_size);
+                if (!get_dev()->write_bytes(calculate_lba(next), 0, cluster_size, buf)) {
+                    set_cluster(next, 0);
+                    heap::free(buf);
+                    heap::free(buffer);
+                    return nullptr;
+                }
+                heap::free(buf);
+            }
+
+            cluster = next;
+
         }
         heap::free(buffer);
         return nullptr;
+    }
+
+    bool FAT32FileSystem::initialize_directory(FAT32::file_entry *entry, uint64_t *lba, uint64_t parent_cluster) {
+        if (!find_free_cluster(lba)) {
+            return false;
+        }
+        if (!set_cluster(*lba, EOF)) {
+            return false;
+        }
+        auto buf = static_cast<uint16_t *>(heap::malloc(cluster_size));
+        memset(buf, 0, cluster_size);
+        if (!get_dev()->write_bytes(calculate_lba(*lba), 0, cluster_size, buf)) {
+            set_cluster(*lba, 0);
+            heap::free(buf);
+            return false;
+        }
+        heap::free(buf);
+        entry->first_cluster_high = (*lba >> 16) & 0xFFFF;
+        entry->first_cluster_low = *lba & 0xFFFF;
+
+        FAT32::file_entry itself = {};
+        FAT32::file_entry parent = {};
+        itself.attributes = 0x10;
+
+        itself.file_size = 0;
+        itself.first_cluster_high = entry->first_cluster_high;
+        itself.first_cluster_low = entry->first_cluster_low;
+        memset(itself.file_name, ' ', 11);
+        itself.file_name[0] = '.';
+
+        parent.attributes = 0x10;
+        memset(parent.file_name, ' ', 11);
+        parent.file_name[0] = '.';
+        parent.file_name[1] = '.';
+        parent.file_size = 0;
+        parent.first_cluster_high = (parent_cluster >> 16) & 0xFFFF;
+        parent.first_cluster_low = parent_cluster & 0xFFFF;
+
+        if (!device->write_bytes(calculate_lba(*lba), 0, sizeof(FAT32::file_entry), reinterpret_cast<uint16_t *>(&itself))) {
+            set_cluster(*lba, 0);
+            return false;
+        }
+
+        if (!device->write_bytes(calculate_lba(*lba), sizeof(FAT32::file_entry), sizeof(FAT32::file_entry), reinterpret_cast<uint16_t *>(&parent))) {
+            set_cluster(*lba, 0);
+            return false;
+        }
+        return true;
     }
 
     FileObject *FAT32FileSystem::find_entry(uint64_t *lba, const char *entry) {
         auto *buffer = static_cast<FAT32::file_entry *>(heap::malloc(cluster_size));
         if (!buffer)
             return nullptr;
+        uint64_t cluster = calculate_cluster(*lba);
 
-        if (!device->read_bytes(*lba, 0, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
-            heap::free(buffer);
-            log::error("[ FAT32 ] Failed to read cluster: lba=%l cluster_size=%u", *lba, cluster_size);
-            return nullptr;
-        }
-
-        char long_name[255] = {};
-        for (size_t i = 0; i < cluster_size/sizeof(FAT32::file_entry); i++) {
-            if (buffer[i].file_name[0] == 0x0) // Nothing
-                break;
-            if (buffer[i].file_name[0] == 0xE5) { // Deleted file
-                long_name[0] = '\0';
-                continue;
-            }
-
-            char short_name[13] = {};
-            parse_short_name(short_name, &buffer[i]);
-
-            const char* name = long_name[0] ? long_name : short_name;
-
-            // Long file name
-            if (buffer[i].attributes == 0x0F) {
-                parse_lfn(long_name, reinterpret_cast<FAT32::long_file_name *>(&buffer[i]));
-                name = long_name;
-                continue;
-            }
-
-            if (buffer[i].attributes & 0x08)
-                continue;
-
-            const char* slash = std::strchr(entry, '/');
-            size_t len = slash ? static_cast<size_t>(slash - entry) : std::strlen(entry);
-
-            if (std::strncmp(name, entry, len) == 0 && name[len] == '\0') {
-                FileObject *ptr = nullptr;
-                if (buffer[i].attributes & 0x10)
-                    ptr = new FAT32Dir(this, buffer[i], i * sizeof(FAT32::file_entry), *lba);
-                else
-                    ptr = new FAT32File(this, buffer[i], i * sizeof(FAT32::file_entry), *lba);
-
-                uint64_t cluster = static_cast<uint32_t>(buffer[i].first_cluster_low) | (static_cast<uint32_t>(buffer[i].first_cluster_high) << 16);
-                if (cluster == 0)
-                    cluster = root_cluster;
-                *lba = calculate_lba(cluster);
+        while (true) {
+            if (!device->read_bytes(calculate_lba(cluster), 0, cluster_size, reinterpret_cast<uint16_t *>(buffer))) {
                 heap::free(buffer);
-                return ptr;
+                log::error("[ FAT32 ] Failed to read cluster: lba=%l cluster_size=%u", *lba, cluster_size);
+                return nullptr;
             }
 
-            if (long_name[0] != '\0')
-                long_name[0] = '\0';
+            char long_name[255] = {};
+            for (size_t i = 0; i < cluster_size/sizeof(FAT32::file_entry); i++) {
+                if (buffer[i].file_name[0] == 0x0) // Nothing
+                    break;
+                if (buffer[i].file_name[0] == 0xE5) { // Deleted file
+                    long_name[0] = '\0';
+                    continue;
+                }
+
+                char short_name[13] = {};
+                parse_short_name(short_name, &buffer[i]);
+
+                const char* name = long_name[0] ? long_name : short_name;
+
+                // Long file name
+                if (buffer[i].attributes == 0x0F) {
+                    parse_lfn(long_name, reinterpret_cast<FAT32::long_file_name *>(&buffer[i]));
+                    name = long_name;
+                    continue;
+                }
+
+                if (buffer[i].attributes & 0x08)
+                    continue;
+
+                const char* slash = std::strchr(entry, '/');
+                size_t len = slash ? static_cast<size_t>(slash - entry) : std::strlen(entry);
+
+                if (std::strncmp(name, entry, len) == 0 && name[len] == '\0') {
+                    FileObject *ptr = nullptr;
+                    if (buffer[i].attributes & 0x10)
+                        ptr = new FAT32Dir(this, buffer[i], i * sizeof(FAT32::file_entry), calculate_lba(cluster));
+                    else
+                        ptr = new FAT32File(this, buffer[i], i * sizeof(FAT32::file_entry), calculate_lba(cluster));
+
+                    uint64_t cluster = static_cast<uint32_t>(buffer[i].first_cluster_low) | (static_cast<uint32_t>(buffer[i].first_cluster_high) << 16);
+                    if (cluster == 0)
+                        cluster = root_cluster;
+                    *lba = calculate_lba(cluster);
+                    heap::free(buffer);
+                    return ptr;
+                }
+
+                if (long_name[0] != '\0')
+                    long_name[0] = '\0';
+            }
+
+            uint64_t next;
+            if (!get_next_cluster(cluster, &next)) {
+                heap::free(buffer);
+                return nullptr;
+            }
+
+            if (next == 0) {
+                heap::free(buffer);
+                return nullptr;
+            }
+
+            cluster = next;
+
         }
 
         heap::free(buffer);

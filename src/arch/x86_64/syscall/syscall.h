@@ -20,6 +20,7 @@ enum class syscall_id : u64 {
     exit = 60,
     truncate = 76,
     ftruncate = 77,
+    mkdir = 83,
     getdents64 = 217,
 
     pci = 100,
@@ -117,6 +118,10 @@ inline u64 sys_truncate(const char *filename, const uint64_t length) {
 
 inline u64 sys_ftruncate(const unsigned int fd, const uint64_t length) {
     return syscall((u64)syscall_id::ftruncate, fd, length);
+}
+
+inline u64 sys_mkdir(const char *pathname, const int mode) {
+    return syscall((u64)syscall_id::mkdir, reinterpret_cast<u64>(pathname), mode);
 }
 
 inline i64 sys_getdents64(const unsigned int fd, linux_dirent64 *dirent, const unsigned int count) {

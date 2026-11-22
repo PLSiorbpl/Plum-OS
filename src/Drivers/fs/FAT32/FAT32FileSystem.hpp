@@ -23,14 +23,19 @@ namespace fs {
     public:
         bool mount(drivers::ahci::ahci_device &dev, const FAT32::fat_info& part);
         vfs::FileObject *open(const char *path, int flags) override;
+        int mkdir(const char *pathname, int mode) override;
         vfs::FileObject *find_entry(uint64_t *lba, const char *entry);
-        vfs::FileObject *create_entry(uint64_t *lba, const char *name);
+        vfs::FileObject *create_entry(uint64_t *lba, const char *name, bool directory);
+        bool initialize_directory(FAT32::file_entry *entry, uint64_t *lba, uint64_t parent_cluster);
 
         bool get_next_cluster(uint64_t cluster, uint64_t *next) const;
         bool find_free_cluster(uint64_t *cluster) const;
         bool set_cluster(uint64_t cluster, uint32_t value) const;
         [[nodiscard]] uint64_t calculate_lba(const uint32_t cluster) const {
             return cluster >= 2 ? fat.data_start + static_cast<uint64_t>(cluster - 2) * fat.bpb.sectors_per_cluster : 0;
+        }
+        [[nodiscard]] uint64_t calculate_cluster(const uint64_t lba) const {
+            return  lba < fat.data_start ? 0 : 2 + (lba - fat.data_start) / fat.bpb.sectors_per_cluster;
         }
         static void parse_short_name(char *buf, const FAT32::file_entry *entry);
         static bool make_short_name(const char *name, FAT32::file_entry *entry);

@@ -262,5 +262,18 @@ Command commands[] = {
 
             std::printf("&7Written %u bytes to %s\n", std::Output::std_out, len, argv[1]);
         }
+    }, {
+        "mkdir", [](int argc, char** argv) {
+            if (argc < 2) {
+                std::printf("Usage: mkdir <path>\n");
+                return;
+            }
+
+            for (int i = 1; i < argc; i++) {
+                if (sys_mkdir(argv[i], 0) != 0) {
+                    std::printf("&fmkdir: &ccannot create directory %s\n", std::Output::std_out, argv[i]);
+                }
+            }
+        }
     }
 };

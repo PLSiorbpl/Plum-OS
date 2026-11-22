@@ -37,6 +37,7 @@ namespace vfs {
     public:
         virtual ~FileSystem() = default;
         virtual FileObject* open(const char* path, int flags) = 0;
+        virtual int mkdir(const char *pathname, int mode) { return -1; }
     };
 
     struct Mount {
@@ -47,6 +48,7 @@ namespace vfs {
     class VFS {
         std::vector<Mount> mounts;
         static bool mount_matches(const char* path, const char* mount);
+        Mount *find_best_mount(const char* path, const char *&relative);
 
     public:
         ~VFS() = default;
@@ -54,6 +56,7 @@ namespace vfs {
         bool mount(const char* path, FileSystem* fs);
         bool unmount(const char* path);
         FileObject *open(const char *path, int flags);
+        int mkdir(const char *pathname, int mode);
     };
 
     extern VFS vfs;

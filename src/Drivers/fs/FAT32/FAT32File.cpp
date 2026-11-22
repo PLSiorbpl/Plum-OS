@@ -44,16 +44,18 @@ namespace fs {
             }
             auto buf = static_cast<uint16_t *>(heap::malloc(cluster_size));
             memset(buf, 0, cluster_size);
-            if (!filesystem->get_dev()->write_bytes(free, 0, cluster_size, buf)) {
+            if (!filesystem->get_dev()->write_bytes(filesystem->calculate_lba(free), 0, cluster_size, buf)) {
+                filesystem->set_cluster(free, 0);
+                heap::free(buf);
                 return -1;
             }
+            heap::free(buf);
             file.first_cluster_high = (free >> 16) & 0xFFFF;
             file.first_cluster_low = free & 0xFFFF;
             if (!update_file_entry()) {
                 file.first_cluster_high = 0;
                 file.first_cluster_low = 0;
-                if (!filesystem->set_cluster(free, 0))
-                    return -1;
+                !filesystem->set_cluster(free, 0);
                 return -1;
             }
             cluster = free;
@@ -80,9 +82,12 @@ namespace fs {
                 }
                 auto buf = static_cast<uint16_t *>(heap::malloc(cluster_size));
                 memset(buf, 0, cluster_size);
-                if (!filesystem->get_dev()->write_bytes(next, 0, cluster_size, buf)) {
+                if (!filesystem->get_dev()->write_bytes(filesystem->calculate_lba(next), 0, cluster_size, buf)) {
+                    filesystem->set_cluster(next, 0);
+                    heap::free(buf);
                     return -1;
                 }
+                heap::free(buf);
             }
 
             cluster = next;
@@ -125,9 +130,12 @@ namespace fs {
                     }
                     auto buf = static_cast<uint16_t *>(heap::malloc(cluster_size));
                     memset(buf, 0, cluster_size);
-                    if (!filesystem->get_dev()->write_bytes(next, 0, cluster_size, buf)) {
+                    if (!filesystem->get_dev()->write_bytes(filesystem->calculate_lba(next), 0, cluster_size, buf)) {
+                        filesystem->set_cluster(next, 0);
+                        heap::free(buf);
                         return -1;
                     }
+                    heap::free(buf);
                 }
 
                 cluster = next;
@@ -313,65 +321,82 @@ namespace fs {
         auto* entry = static_cast<FAT32::file_entry *>(heap::malloc(cluster_size));
         if (!entry) return -1;
 
-        if (!filesystem->get_dev()->read_bytes(start_lba, 0, cluster_size, (uint16_t *)entry)) {
-            heap::free(entry);
-            return -1;
-        }
-
         int used_bytes = 0;
-        char long_name[256] = {};
-        char *name = nullptr;
-        for (size_t i = 0; i < cluster_size/sizeof(FAT32::file_entry); i++) {
-            if (entry[i].file_name[0] == 0x0)
-                break;
-            if (entry[i].file_name[0] == 0xE5) // Deleted file
-                continue;
+        uint64_t cluster = first_cluster;
+        int idx = -1;
 
-
-            char short_name[13] = {};
-            FAT32FileSystem::parse_short_name(short_name, &entry[i]);
-            if (long_name[0] == '\0')
-                name = short_name;
-
-            // Long file name
-            if (entry[i].attributes == 0x0F) {
-                FAT32FileSystem::parse_lfn(long_name, reinterpret_cast<FAT32::long_file_name *>(&entry[i]));
-                name = long_name;
-                continue;
+        while (true) {
+            if (!filesystem->get_dev()->read_bytes(filesystem->calculate_lba(cluster), 0, cluster_size, (uint16_t *)entry)) {
+                heap::free(entry);
+                return -1;
             }
 
-            if (entry[i].attributes & 0x08) continue;
+            char long_name[256] = {};
+            char *name = nullptr;
+            for (size_t i = 0; i < cluster_size/sizeof(FAT32::file_entry); i++) {
+                idx++;
+                if (entry[i].file_name[0] == 0x0)
+                    break;
+                if (entry[i].file_name[0] == 0xE5) // Deleted file
+                    continue;
 
-            if (i < position) {
+
+                char short_name[13] = {};
+                FAT32FileSystem::parse_short_name(short_name, &entry[i]);
+                if (long_name[0] == '\0')
+                    name = short_name;
+
+                // Long file name
+                if (entry[i].attributes == 0x0F) {
+                    FAT32FileSystem::parse_lfn(long_name, reinterpret_cast<FAT32::long_file_name *>(&entry[i]));
+                    name = long_name;
+                    continue;
+                }
+
+                if (entry[i].attributes & 0x08) continue;
+
+                if (idx < position) {
+                    if (long_name[0] != '\0')
+                        long_name[0] = '\0';
+                    continue;
+                }
+
+                auto *current = reinterpret_cast<linux_dirent64 *>(reinterpret_cast<uint8_t *>(dirent) + used_bytes);
+
+                const size_t name_len = std::strlen(name) + 1;
+                size_t reclen = offsetof(linux_dirent64, d_name) + name_len;
+                reclen = (reclen + 7) & ~7;
+
+                if (used_bytes + reclen > count) { heap::free(entry); return used_bytes; }
+
+                if (entry[i].attributes & 0x10) { // Dir
+                    current->d_type = DT_DIR;
+                } else if (entry[i].attributes & 0x20) { // File
+                    current->d_type = DT_REG;
+                }
+                used_bytes += reclen;
+
+                current->d_ino = idx;
+                current->d_reclen = reclen;
+                current->d_off = idx;
+                memcpy(current->d_name, name, name_len);
+
                 if (long_name[0] != '\0')
                     long_name[0] = '\0';
-                continue;
+
+                position = idx + 1;
             }
 
-            auto *current = reinterpret_cast<linux_dirent64 *>(reinterpret_cast<uint8_t *>(dirent) + used_bytes);
-
-            const size_t name_len = std::strlen(name) + 1;
-            size_t reclen = offsetof(linux_dirent64, d_name) + name_len;
-            reclen = (reclen + 7) & ~7;
-
-            if (used_bytes + reclen > count) break;
-
-            if (entry[i].attributes & 0x10) { // Dir
-                current->d_type = DT_DIR;
-            } else if (entry[i].attributes & 0x20) { // File
-                current->d_type = DT_REG;
+            uint64_t next;
+            if (!filesystem->get_next_cluster(cluster, &next)) {
+                heap::free(entry);
+                return -1;
             }
-            used_bytes += reclen;
 
-            current->d_ino = i;
-            current->d_reclen = reclen;
-            current->d_off = i;
-            memcpy(current->d_name, name, name_len);
+            if (next == 0)
+                break;
 
-            if (long_name[0] != '\0')
-                long_name[0] = '\0';
-
-            position = i + 1;
+            cluster = next;
         }
 
         heap::free(entry);

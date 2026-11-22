@@ -23,4 +23,6 @@ u64 kftruncate(unsigned int fd, uint64_t lenght);
 u64 kdup(unsigned int fd);
 u64 kdup2(unsigned int oldfd, unsigned int newfd);
 
+u64 kmkdir(const char *pathname, int mode);
+
 u64 kgetdents64(unsigned int fd, linux_dirent64 *dirent, unsigned int count);

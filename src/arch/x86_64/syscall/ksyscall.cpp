@@ -188,6 +188,10 @@ u64 kdup2(unsigned int oldfd, unsigned int newfd) {
     return newfd;
 }
 
+u64 kmkdir(const char *pathname, int mode) {
+    return vfs::vfs.mkdir(pathname, mode);
+}
+
 u64 kgetdents64(const unsigned int fd, linux_dirent64 *dirent, const unsigned int count) {
     auto process = vfs::get_thread();
 
