@@ -55,7 +55,7 @@ namespace fs {
             if (!update_file_entry()) {
                 file.first_cluster_high = 0;
                 file.first_cluster_low = 0;
-                !filesystem->set_cluster(free, 0);
+                filesystem->set_cluster(free, 0);
                 return -1;
             }
             cluster = free;

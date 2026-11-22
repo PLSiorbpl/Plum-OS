@@ -7,12 +7,7 @@
 
 namespace fs::FAT32 {
     fat32_manager::~fat32_manager() {
-        if (fat_partitions.empty())
-            return;
 
-        for (auto & fat_partition : fat_partitions) {
-            heap::free_align(&fat_partition);
-        }
     }
 
     void fat32_manager::init(drivers::ahci::ahci_device &dev) {
@@ -51,7 +46,6 @@ namespace fs::FAT32 {
                 fatfile_systems.push_back(FAT32FileSystem());
                 FAT32FileSystem *fat32_file_system = &fatfile_systems.back();
                 fat32_file_system->mount(*device, *fat);
-                //vfs::vfs.mount("/", fat32_file_system);
 
                 char oem_name[9];
                 for (int s = 0; s < 8; s++) {
