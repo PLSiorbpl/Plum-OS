@@ -8,17 +8,17 @@ namespace fs::ext2 {
         if (inode->mode.type == InodeType::File)
             size |= static_cast<u64>(inode->size_bytes_hi) << 32;
 
-        this->contents = heap::malloc_align(size, 0x1000);
+        this->contents = heap::malloc(size);
         ext2_data.resolve_inode(*inode, this->contents);
     }
 
     Ext2File::~Ext2File() {
-        heap::free_align(inode);
-        heap::free_align(contents);
+        delete inode;
+        heap::free(contents);
     }
 
     int64_t Ext2File::read(void* buffer, size_t size) {
-        if (!buffer)
+        if (!buffer || is_directory())
             return -1;
 
         u64 file_size = this->size();

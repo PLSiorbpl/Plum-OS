@@ -8,7 +8,7 @@ namespace fs::ext2 {
     vfs::FileObject* Ext2::open(const char* path, int flags) {
         auto start = path;
         auto* inode = read_inode(2);
-        DirectoryEntry* final_entry;
+        DirectoryEntry* final_entry = nullptr;
         if (!inode)
             return nullptr;
 
@@ -23,13 +23,13 @@ namespace fs::ext2 {
 
             char name[256];
             if (len > 255) {
-                heap::free_align(inode);
+                delete inode;
                 return nullptr;
             }
             memcpy(name, start, len);
 
             if (inode->mode.type != InodeType::Directory) {
-                heap::free_align(inode);
+                delete inode;
                 return nullptr;
             }
 
@@ -54,7 +54,7 @@ namespace fs::ext2 {
             }
 
             delete[] buf;
-            heap::free_align(inode);
+            delete inode;
 
             if (child == 0)
                 return nullptr;
@@ -112,7 +112,7 @@ namespace fs::ext2 {
     }
 
     bool Ext2::locate_superblock() {
-        auto* superblock = (Superblock*) heap::malloc_align(1024, 0x1000);
+        auto* superblock = static_cast<Superblock*>(heap::malloc(1024));
         if (superblock == nullptr) {
             log::error("[ EXT2 ] Failed to allocate superblock!!");
             return false;
@@ -140,13 +140,13 @@ namespace fs::ext2 {
         return true;
 
         failure:
-            heap::free_align(superblock);
+            heap::free(superblock);
             return false;
     }
 
     bool Ext2::locate_gdt() {
         u32 gdt_size = this->num_groups * sizeof(GroupDescriptor);
-        auto* block_group_descriptor_table = (GroupDescriptor*) heap::malloc_align(gdt_size, 0x1000);
+        auto* block_group_descriptor_table = new GroupDescriptor[this->num_groups];
         if (block_group_descriptor_table == nullptr) {
             log::error("[ EXT2 ] Failed to allocate Block Group Descriptor Table!!");
             return false;
@@ -154,7 +154,7 @@ namespace fs::ext2 {
 
         if (!read_block(superblock->starting_block + 1, block_group_descriptor_table, gdt_size)) {
             log::error("[ EXT2 ] Failed to get Block Group Descriptor Table!");
-            heap::free_align(block_group_descriptor_table);
+            delete[] block_group_descriptor_table;
             return false;
         }
 
@@ -215,7 +215,7 @@ namespace fs::ext2 {
             return;
         }
 
-        auto* ptrs = reinterpret_cast<u32*>(heap::malloc_align(block_size, 0x1000));
+        auto* ptrs = new u32[block_size / sizeof(u32)];
         if (ptrs == nullptr) {
             log::error("[ EXT2 ] Failed to allocate indirect block!");
             return;
@@ -230,7 +230,7 @@ namespace fs::ext2 {
         for (u32 i = 0; i < ptr_count && pos < size; i++)
             resolve_block(ptrs[i], depth - 1, buffer, pos, size);
 
-        heap::free_align(ptrs);
+        delete[] ptrs;
     }
 
     Inode* Ext2::read_inode(u64 num) {
@@ -239,11 +239,11 @@ namespace fs::ext2 {
         auto group = this->block_group_descriptor_table[(num - 1) / inodes_per_group];
 
         // cache 1 block latore??
-        Inode* inode = reinterpret_cast<Inode*>(heap::malloc_align(sizeof(Inode), 0x1000));
+        Inode* inode = new Inode();
         u64 offset = group.inode_table_block_addr * this->block_size + index * superblock->inode_size;
         if (!device->read_bytes(partition.starting_lba, offset, sizeof(Inode), reinterpret_cast<u16*>(inode))) {
             log::error("Failed to read inode #%i!", num);
-            heap::free_align(inode);
+            delete inode;
             return nullptr;
         }
 
